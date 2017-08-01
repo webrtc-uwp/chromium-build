@@ -64,6 +64,9 @@ declare_args() {
 
   # Whether or not we should use position independent code.
   use_pic = true
+
+  # Allow projects that wish to stay on C++11 to override Chromium's default.
+  use_cxx11 = false
 }
 
 # Determine whether to enable or disable frame pointers, based on the platform
