@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "64dabcf5_08c922d7",
+        "filename": "config/compiler/BUILD.gn",
+        "patchSetId": 1
+      },
+      "lineNbr": 462,
+      "author": {
+        "id": 1003232
+      },
+      "writtenOn": "2017-08-01T17:00:11Z",
+      "side": 1,
+      "message": "Where is/would this be defined?\n\nNormally I\u0027d expect this to be defined as a declare_arg(), defaulting to false. You could then override this in a default_args() scope in your dotfile (//.gn).",
+      "revId": "fa8b40068ae4988b5f4b2c2d2d75654291b0df96",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
+    }
+  ]
+}
