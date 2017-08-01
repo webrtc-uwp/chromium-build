@@ -16,6 +16,24 @@
       "revId": "fa8b40068ae4988b5f4b2c2d2d75654291b0df96",
       "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "53cd19ad_837b5adf",
+        "filename": "config/compiler/BUILD.gn",
+        "patchSetId": 1
+      },
+      "lineNbr": 462,
+      "author": {
+        "id": 1179484
+      },
+      "writtenOn": "2017-08-01T18:25:22Z",
+      "side": 1,
+      "message": "This is how the user of this looks:\n\n--- a/build_overrides/build.gni\n+++ b/build_overrides/build.gni\n@@ -6,6 +6,9 @@\n # in the file PATENTS.  All contributing project authors may\n # be found in the AUTHORS file in the root of the source tree.\n \n+# WebRTC does not want to switch to C++14 yet.\n+use_cxx11 \u003d true\n+\n # Some non-Chromium builds don\u0027t support building java targets.\n enable_java_templates \u003d true\n\nIf I put this in a declare_arg, the change above wouldn\u0027t work.\n\nI didn\u0027t know about //.gn -- reworked this as suggested. Thanks.",
+      "parentUuid": "64dabcf5_08c922d7",
+      "revId": "fa8b40068ae4988b5f4b2c2d2d75654291b0df96",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
     }
   ]
 }
