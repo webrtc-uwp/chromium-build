@@ -34,6 +34,24 @@
       "revId": "fa8b40068ae4988b5f4b2c2d2d75654291b0df96",
       "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "682724e5_22248645",
+        "filename": "config/compiler/BUILD.gn",
+        "patchSetId": 1
+      },
+      "lineNbr": 462,
+      "author": {
+        "id": 1003232
+      },
+      "writtenOn": "2017-08-01T19:46:43Z",
+      "side": 1,
+      "message": "Ah, I didn\u0027t know you had it in build_overrides. That makes sense.\n\nWe\u0027re trying to get rid of build_overrides and move things to the .gn/default_args approach instead, it\u0027s relatively new and should work better.",
+      "parentUuid": "53cd19ad_837b5adf",
+      "revId": "fa8b40068ae4988b5f4b2c2d2d75654291b0df96",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
     }
   ]
 }
