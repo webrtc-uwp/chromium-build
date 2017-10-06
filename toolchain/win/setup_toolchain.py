@@ -83,13 +83,13 @@ def _LoadEnvFromBat(args):
   return variables
 
 
-def _LoadToolchainEnv(cpu, sdk_dir):
+def _LoadToolchainEnv(cpu, sdk_dir, target_store):
   """Returns a dictionary with environment variables that must be set while
   running binaries from the toolchain (e.g. INCLUDE and PATH for cl.exe)."""
   # Check if we are running in the SDK command line environment and use
   # the setup script from the SDK if so. |cpu| should be either
-  # 'x86' or 'x64'.
-  assert cpu in ('x86', 'x64')
+  # 'x86' or 'x64' or 'arm'.
+  assert cpu in ('x86', 'x64', 'arm')
   if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', 1))) and sdk_dir:
     # Load environment from json file.
     env = os.path.normpath(os.path.join(sdk_dir, 'bin/SetEnv.%s.json' % cpu))
@@ -142,6 +142,8 @@ def _LoadToolchainEnv(cpu, sdk_dir):
     # Chromium requires the 10.0.14393.0 SDK or higher - previous versions don't
     # have all of the required declarations.
     args = [script_path, 'amd64_x86' if cpu == 'x86' else 'amd64']
+    if (target_store):
+      args.extend(['store'])
     variables = _LoadEnvFromBat(args)
   return _ExtractImportantEnvironment(variables)
 
@@ -159,16 +161,20 @@ def _FormatAsEnvironmentBlock(envvar_dict):
 
 
 def main():
-  if len(sys.argv) != 5:
+  if (len(sys.argv) != 5) and (len(sys.argv) != 6):
     print('Usage setup_toolchain.py '
           '<visual studio path> <win sdk path> '
-          '<runtime dirs> <target_cpu> <include prefix>')
+          '<runtime dirs> <target_cpu> <store>')
     sys.exit(2)
   win_sdk_path = sys.argv[2]
   runtime_dirs = sys.argv[3]
   target_cpu = sys.argv[4]
+  target_store = False
+  if (len(sys.argv) == 6):
+    if (sys.argv[5] == 'store'):
+      target_store = True
 
-  cpus = ('x86', 'x64')
+  cpus = ('x86', 'x64', 'arm')
   assert target_cpu in cpus
   vc_bin_dir = ''
   include = ''
@@ -178,7 +184,7 @@ def main():
 
   for cpu in cpus:
     # Extract environment variables for subprocesses.
-    env = _LoadToolchainEnv(cpu, win_sdk_path)
+    env = _LoadToolchainEnv(cpu, win_sdk_path, target_store)
     env['PATH'] = runtime_dirs + os.pathsep + env['PATH']
 
     if cpu == target_cpu:
@@ -197,12 +203,12 @@ def main():
       f.write(env_block)
 
     # Create a store app version of the environment.
-    if 'LIB' in env:
-      env['LIB']     = env['LIB']    .replace(r'\VC\LIB', r'\VC\LIB\STORE')
-    if 'LIBPATH' in env:
-      env['LIBPATH'] = env['LIBPATH'].replace(r'\VC\LIB', r'\VC\LIB\STORE')
-    env_block = _FormatAsEnvironmentBlock(env)
-    with open('environment.winrt_' + cpu, 'wb') as f:
+    #if 'LIB' in env:
+    #  env['LIB']     = env['LIB']    .replace(r'\VC\LIB', r'\VC\LIB\STORE')
+    #if 'LIBPATH' in env:
+    #  env['LIBPATH'] = env['LIBPATH'].replace(r'\VC\LIB', r'\VC\LIB\STORE')
+    #env_block = _FormatAsEnvironmentBlock(env)
+    with open('environment.winuwp_' + cpu, 'wb') as f:
       f.write(env_block)
 
   assert vc_bin_dir

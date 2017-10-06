@@ -409,6 +409,42 @@ template("win_x64_toolchains") {
   }
 }
 
+# arm toolchains. Only define these when the target architecture is 32-bit
+# since we don't do any 32-bit cross compiles when targeting 64-bit (the
+# build does generate some 64-bit stuff from 32-bit target builds).
+if (target_cpu == "arm") {
+  arm_toolchain_data = exec_script("setup_toolchain.py",
+                                   [
+                                     visual_studio_path,
+                                     windows_sdk_path,
+                                     visual_studio_runtime_dirs,
+                                     "arm",
+                                   ],
+                                   "scope")
+
+  msvc_toolchain("arm") {
+    environment = "environment.arm"
+    cl = "${goma_prefix}\"${arm_toolchain_data.vc_bin_dir}/cl.exe\""
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = false
+    }
+  }
+
+  msvc_toolchain("clang_arm") {
+    environment = "environment.arm"
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${goma_prefix}$prefix/${clang_cl}"
+    sys_include_flags = "${arm_toolchain_data.include_flags_imsvc}"
+
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = true
+    }
+  }
+}
+
+
 win_x64_toolchains("x64") {
   toolchain_args = {
     # Use the defaults.
@@ -426,30 +462,67 @@ win_x64_toolchains("nacl_win64") {
   }
 }
 
-# WinRT toolchains. Only define these when targeting them.
-#
-# NOTE: This is currently broken because it references vc_bin_dir. brettw@
-# changed this around a bit, and I don't know what this should be set to
-# in terms of what setup_toolchain returns for a certain CPU architecture.
-if (target_os == "winrt_81" || target_os == "winrt_81_phone" ||
-    target_os == "winrt_10") {
-  msvc_toolchain("winrt_x86") {
-    environment = "environment.winrt_x86"
-    cl = "${goma_prefix}\"${vc_bin_dir}/cl.exe\""
+# WinUWP toolchains. Only define these when targeting them.
+if (is_winuwp) {
+  if (target_cpu == "x86") {
+    winuwp_x86_toolchain_data = exec_script("setup_toolchain.py",
+                                     [
+                                       visual_studio_path,
+                                       windows_sdk_path,
+                                       visual_studio_runtime_dirs,
+                                       "x86",
+                                       "store",
+                                     ],
+                                     "scope")
 
-    toolchain_args = {
-      is_clang = false
-      current_cpu = "x86"
+    msvc_toolchain("winuwp_x86") {
+      environment = "environment.winuwp_x86"
+      cl = "${goma_prefix}\"${winuwp_x86_toolchain_data.vc_bin_dir}\cl.exe\""
+      toolchain_args = {
+        is_clang = false
+        current_cpu = "x86"
+      }
     }
   }
 
-  msvc_toolchain("winrt_x64") {
-    environment = "environment.winrt_x64"
-    cl = "${goma_prefix}\"${vc_bin_dir}/cl.exe\""
-
-    toolchain_args = {
-      is_clang = false
-      current_cpu = "x64"
+  if (target_cpu == "x64") {
+    winuwp_x64_toolchain_data = exec_script("setup_toolchain.py",
+                                     [
+                                       visual_studio_path,
+                                       windows_sdk_path,
+                                       visual_studio_runtime_dirs,
+                                       "x64",
+                                       "store"
+                                     ],
+                                     "scope")
+    msvc_toolchain("winuwp_x64") {
+      environment = "environment.winuwp_x64"
+      cl = "${goma_prefix}\"${winuwp_x64_toolchain_data.vc_bin_dir}\cl.exe\""
+      toolchain_args = {
+        is_clang = false
+        current_cpu = "x64"
+      }
     }
   }
+
+  if (target_cpu == "arm") {
+    winuwp_arm_toolchain_data = exec_script("setup_toolchain.py",
+                                     [
+                                       visual_studio_path,
+                                       windows_sdk_path,
+                                       visual_studio_runtime_dirs,
+                                       "arm",
+                                       "store"
+                                     ],
+                                     "scope")
+    msvc_toolchain("winuwp_arm") {
+      environment = "environment.winuwp_arm"
+      cl = "${goma_prefix}\"${winuwp_arm_toolchain_data.vc_bin_dir}\cl.exe\""
+      toolchain_args = {
+        is_clang = false
+        current_cpu = "arm"
+      }
+    }
+  }
+
 }
