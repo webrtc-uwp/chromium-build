@@ -208,11 +208,21 @@ config("winver") {
 # Linker flags for Windows SDK setup, this is applied only to EXEs and DLLs.
 config("sdk_link") {
   if (current_cpu == "x64") {
+  winuwp_x64_toolchain_data = exec_script("../../toolchain/win/setup_toolchain.py",
+                                     [
+                                       visual_studio_path,
+                                       windows_sdk_path,
+                                       visual_studio_runtime_dirs,
+                                       "x64",
+                                     ],
+                                     "scope")
+    vc_lib_path = winuwp_x64_toolchain_data.vc_lib_path
+    vc_atlmfc_lib_path = winuwp_x64_toolchain_data.vc_atlmfc_lib_path
     ldflags = [ "/MACHINE:X64" ]
     lib_dirs = [
       "$windows_sdk_path\Lib\winv6.3\um\x64",
-      "$visual_studio_path\VC\lib\amd64",
-      "$visual_studio_path\VC\atlmfc\lib\amd64",
+      "$vc_lib_path",
+      "$vc_atlmfc_lib_path",
     ]
   } else {
     ldflags = [

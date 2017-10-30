@@ -177,6 +177,8 @@ def main():
   cpus = ('x86', 'x64', 'arm')
   assert target_cpu in cpus
   vc_bin_dir = ''
+  vc_lib_dir = ''
+  vc_atlmfc_lib_dir = ''
   include = ''
 
   # TODO(scottmg|goma): Do we need an equivalent of
@@ -192,12 +194,20 @@ def main():
         if os.path.exists(os.path.join(path, 'cl.exe')):
           vc_bin_dir = os.path.realpath(path)
           break
+
+      for path in env['LIB'].split(os.pathsep):
+        if os.path.exists(os.path.join(path, 'msvcrt.lib')):
+          vc_lib_dir = os.path.realpath(path)
+          break
+          
+      vc_atlmfc_lib_dir = vc_lib_dir.replace("lib","atlmfc//lib")
+      
       # The separator for INCLUDE here must match the one used in
       # _LoadToolchainEnv() above.
       include = [p.replace('"', r'\"') for p in env['INCLUDE'].split(';') if p]
       include_I = ' '.join(['"/I' + i + '"' for i in include])
       include_imsvc = ' '.join(['"-imsvc' + i + '"' for i in include])
-
+      
     env_block = _FormatAsEnvironmentBlock(env)
     with open('environment.' + cpu, 'wb') as f:
       f.write(env_block)
@@ -217,6 +227,10 @@ def main():
   print 'include_flags_I = ' + gn_helpers.ToGNString(include_I)
   assert include_imsvc
   print 'include_flags_imsvc = ' + gn_helpers.ToGNString(include_imsvc)
-
+  assert vc_lib_dir
+  print 'vc_lib_path = ' + gn_helpers.ToGNString(vc_lib_dir)
+  assert vc_atlmfc_lib_dir
+  print 'vc_atlmfc_lib_path = ' + gn_helpers.ToGNString(vc_atlmfc_lib_dir)
+  
 if __name__ == '__main__':
   main()
