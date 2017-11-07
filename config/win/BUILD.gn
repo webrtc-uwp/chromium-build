@@ -444,6 +444,7 @@ config("target_winuwp") {
   if (should_define_winuwp) {
     defines = [
       "WINUWP",
+      "__WRL_NO_DEFAULT_LIB__",
       "WEBRTC_FEATURE_END_TO_END_DELAY",
       "WEBRTC_BASE_QUEUED_TASK_USING_STDLIB",
     ]
