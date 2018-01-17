@@ -334,6 +334,40 @@ if (host_os == "win") {
   clang_cl = "clang-cl"
 }
 
+# arm toolchains. Only define these when the target architecture is arm
+# since we don't do any arm cross compiles when targeting other CPUs.
+if (target_cpu == "arm") {
+  arm_toolchain_data = exec_script("setup_toolchain.py",
+                                   [
+                                     visual_studio_path,
+                                     windows_sdk_path,
+                                     visual_studio_runtime_dirs,
+                                     "arm",
+                                   ],
+                                   "scope")
+
+  msvc_toolchain("arm") {
+    environment = "environment.arm"
+    cl = "${goma_prefix}\"${arm_toolchain_data.vc_bin_dir}/cl.exe\""
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = false
+    }
+  }
+
+  msvc_toolchain("win_clang_arm") {
+    environment = "environment.arm"
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${goma_prefix}$prefix/${clang_cl}"
+    sys_include_flags = "${arm_toolchain_data.include_flags_imsvc}"
+
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = true
+    }
+  }
+}
+
 # 32-bit toolchains. Only define these when the target architecture is 32-bit
 # since we don't do any 32-bit cross compiles when targeting 64-bit (the
 # build does generate some 64-bit stuff from 32-bit target builds).
@@ -463,6 +497,7 @@ win_x64_toolchains("nacl_win64") {
 }
 
 # WinUWP toolchains. Only define these when targeting them.
+
 if (is_winuwp) {
   if (target_cpu == "x86") {
     winuwp_x86_toolchain_data = exec_script("setup_toolchain.py",
@@ -475,7 +510,7 @@ if (is_winuwp) {
                                      ],
                                      "scope")
 
-    msvc_toolchain("winuwp_x86") {
+    msvc_toolchain("uwp_x86") {
       environment = "environment.winuwp_x86"
       cl = "${goma_prefix}\"${winuwp_x86_toolchain_data.vc_bin_dir}\cl.exe\""
       toolchain_args = {
@@ -495,7 +530,7 @@ if (is_winuwp) {
                                        "store"
                                      ],
                                      "scope")
-    msvc_toolchain("winuwp_x64") {
+    msvc_toolchain("uwp_x64") {
       environment = "environment.winuwp_x64"
       cl = "${goma_prefix}\"${winuwp_x64_toolchain_data.vc_bin_dir}\cl.exe\""
       toolchain_args = {
@@ -515,7 +550,7 @@ if (is_winuwp) {
                                        "store"
                                      ],
                                      "scope")
-    msvc_toolchain("winuwp_arm") {
+    msvc_toolchain("uwp_arm") {
       environment = "environment.winuwp_arm"
       cl = "${goma_prefix}\"${winuwp_arm_toolchain_data.vc_bin_dir}\cl.exe\""
       toolchain_args = {

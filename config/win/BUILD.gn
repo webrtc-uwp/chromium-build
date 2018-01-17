@@ -19,6 +19,26 @@ declare_args() {
 
   # Turn this on to have the linker output extra timing information.
   win_linker_timing = false
+
+  if (is_winuwp) {
+    # possible values for target_uwp_version:
+    #   "10" - Windows UWP 10
+    #   "8.1" - Windows RT 8.1
+    #   "8.0" - Windows RT 8.0
+    if (!defined(target_uwp_version) || target_uwp_version == "") {
+      target_uwp_version = "10"
+    }
+
+    # possible values:
+    #   "uwp" - standard universal build
+    #   "phone" - legacy phone build
+    if (!defined(target_uwp_flavor) || target_uwp_flavor == "") {
+      target_uwp_flavor = "uwp"
+    }
+  } else {
+    target_uwp_version = ""
+    target_uwp_flavor = ""
+  }
 }
 
 # This is included by reference in the //build/config/compiler config that
@@ -208,43 +228,57 @@ config("winver") {
 # Linker flags for Windows SDK setup, this is applied only to EXEs and DLLs.
 config("sdk_link") {
   if (current_cpu == "x64") {
-  winuwp_x64_toolchain_data = exec_script("../../toolchain/win/setup_toolchain.py",
-                                     [
-                                       visual_studio_path,
-                                       windows_sdk_path,
-                                       visual_studio_runtime_dirs,
-                                       "x64",
-                                     ],
-                                     "scope")
-    vc_lib_path = winuwp_x64_toolchain_data.vc_lib_path
-    vc_atlmfc_lib_path = winuwp_x64_toolchain_data.vc_atlmfc_lib_path
     ldflags = [ "/MACHINE:X64" ]
     lib_dirs = [
-      "$windows_sdk_path\Lib\winv6.3\um\x64",
-      "$vc_lib_path",
-      "$vc_atlmfc_lib_path",
+      "$windows_sdk_path\Lib\winv6.3\um\x64"
     ]
-  } else {
-    winuwp_x86_toolchain_data = exec_script("../../toolchain/win/setup_toolchain.py",
-                                     [
-                                       visual_studio_path,
-                                       windows_sdk_path,
-                                       visual_studio_runtime_dirs,
-                                       "x86",
-                                     ],
-                                     "scope")
-    vc_lib_path = winuwp_x86_toolchain_data.vc_lib_path
-    vc_atlmfc_lib_path = winuwp_x86_toolchain_data.vc_atlmfc_lib_path
+  } else if (current_cpu == "x86") {
     ldflags = [
       "/MACHINE:X86",
       "/SAFESEH",  # Not compatible with x64 so use only for x86.
       "/largeaddressaware",
     ]
     lib_dirs = [
-      "$windows_sdk_path\Lib\winv6.3\um\x86",
+      "$windows_sdk_path\Lib\winv6.3\um\x86"
+    ]
+  } else if (current_cpu == "arm") {
+    ldflags = [ "/MACHINE:ARM" ]
+  } else {
+    assert(false, "current_cpu is not valid: $current_cpu")
+  }
+
+  if (current_toolchain != host_toolchain && is_winuwp) {
+    # only when target is uwp and not targeting the host system
+
+    winuwp_toolchain_data = exec_script("../../toolchain/win/setup_toolchain.py",
+                                        [
+                                          visual_studio_path,
+                                          windows_sdk_path,
+                                          visual_studio_runtime_dirs,
+                                          current_cpu,
+                                        ],
+                                        "scope")
+
+    vc_lib_path = winuwp_toolchain_data.vc_lib_path
+    vc_atlmfc_lib_path = winuwp_toolchain_data.vc_atlmfc_lib_path
+
+    lib_dirs += [
       "$vc_lib_path",
       "$vc_atlmfc_lib_path",
     ]
+
+  } else {
+    if (current_cpu == "x64") {
+      lib_dirs += [
+        "$visual_studio_path\VC\lib\amd64",
+        "$visual_studio_path\VC\atlmfc\lib\amd64",
+      ]
+    } else {
+      lib_dirs += [
+        "$visual_studio_path\VC\lib",
+        "$visual_studio_path\VC\atlmfc\lib",
+      ]
+    }
   }
 }
 
@@ -304,8 +338,8 @@ config("default_crt") {
     # exceptions on.
     configs = [ ":dynamic_crt" ]
   } else {
-    if (current_os != "win" || is_winuwp) {
-      # WindowsUWP: use the dynamic CRT.
+    if (is_winuwp) {
+      # Windows UWP: use the dynamic CRT.
       configs = [ ":dynamic_crt" ]
     } else {
       # Desktop Windows: static CRT.
@@ -435,18 +469,14 @@ config("nominmax") {
 
 # When targeting Windows Runtime, certain compiler/linker flags are necessary.
 
-config("target_winuwp") {
-  should_define_winuwp = is_winuwp
-  if (current_toolchain != "//build/toolchain/win:winuwp_$target_cpu") {
-    should_define_winuwp = false
-  }
+config("uwp") {
+  if (current_toolchain != host_toolchain && is_winuwp) {
+    # this will only happen when current target is set to uwp
+    # (as host is never uwp)
 
-  if (should_define_winuwp) {
     defines = [
       "WINUWP",
       "__WRL_NO_DEFAULT_LIB__",
-      "WEBRTC_FEATURE_END_TO_END_DELAY",
-      "WEBRTC_BASE_QUEUED_TASK_USING_STDLIB",
     ]
     if (target_cpu == "arm") {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP" ]
@@ -461,16 +491,20 @@ config("target_winuwp") {
     arflags = [
       "/IGNORE:4264"
     ]
-  } else {
-    defines = [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
-  }
 
-  if (target_os == "winuwp_81") {
-    defines += [ "WIN8_1=_WIN32_WINNT_WINBLUE" ]
-  } else if (target_os == "winuwp_81_phone") {
-    defines += [ "WIN8_1=_WIN32_WINNT_WINBLUE" ]
-  } else if (target_os == "winuwp_10") {
-    defines += [ "WIN10=_WIN32_WINNT_WIN10" ]
+    if (target_uwp_version == "10") {
+      defines += [ "WIN10=_WIN32_WINNT_WIN10" ]
+    } else if (target_uwp_version == "8.1") {
+      defines += [ "WIN8_1=_WIN32_WINNT_WINBLUE" ]
+    } else if (target_uwp_version == "8.0") {
+      defines += [ "WIN8=_WIN32_WINNT_WIN8" ]
+    }
+  }
+}
+
+config("desktop") {
+  if (current_toolchain != host_toolchain || !is_winuwp) {
+    defines = [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
   }
 }
 

@@ -169,6 +169,12 @@ declare_args() {
       is_debug && current_os != "ios" && current_os != "fuchsia"
 }
 
+declare_args() {
+  # Default when building windows is not not be building against the winuwp
+  # platform.
+  is_winuwp = false
+}
+
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
 
 # ==============================================================================
@@ -249,6 +255,8 @@ if (target_os == "android") {
   assert(target_os == host_os, "Win cross-compiles only work on win hosts.")
   if (is_clang) {
     _default_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
+  } else if (is_winuwp) {
+    _default_toolchain = "//build/toolchain/win:uwp_$target_cpu"
   } else {
     _default_toolchain = "//build/toolchain/win:$target_cpu"
   }
@@ -419,6 +427,13 @@ if (!is_win) {
     "*.def",
     "*.rc",
   ]
+  if (!is_winuwp) {
+    sources_assignment_filter += [
+      "*_winuwp.cc",
+      "*_winuwp.h",
+      "*_winuwp_unittest.cc",
+    ]
+  }
 }
 if (!is_mac) {
   sources_assignment_filter += [
@@ -531,8 +546,11 @@ if (is_win) {
     "//build/config/win:unicode",
     "//build/config/win:winver",
     "//build/config/win:vs_code_analysis",
-    "//build/config/win:target_winuwp",
+    "//build/config/win:desktop",
   ]
+  if (is_winuwp) {
+    default_compiler_configs += [ "//build/config/win:uwp" ]
+  }
 }
 
 if (is_posix) {
