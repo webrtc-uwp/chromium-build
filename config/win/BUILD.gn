@@ -477,6 +477,8 @@ config("uwp") {
     defines = [
       "WINUWP",
       "__WRL_NO_DEFAULT_LIB__",
+      "WEBRTC_FEATURE_END_TO_END_DELAY",
+      "WEBRTC_BASE_QUEUED_TASK_USING_STDLIB",
     ]
     if (target_cpu == "arm") {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP" ]
