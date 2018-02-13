@@ -153,8 +153,8 @@ def DetectVisualStudioPath():
     # For now we use a hardcoded default with an environment variable override.
     for path in (
         os.environ.get('vs2017_install'),
-        os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Professional'),
         os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Enterprise'),
+        os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Professional'),
         os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Community')):
       if path and os.path.exists(path):
         return path

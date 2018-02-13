@@ -23,9 +23,19 @@ assert(is_win)
 tool_wrapper_path = rebase_path("tool_wrapper.py", root_build_dir)
 
 if (use_goma) {
-  goma_prefix = "$goma_dir/gomacc.exe "
+  if (host_os == "win") {
+    goma_prefix = "$goma_dir/gomacc.exe "
+  } else {
+    goma_prefix = "$goma_dir/gomacc "
+  }
 } else {
   goma_prefix = ""
+}
+
+if (disable_goma) {
+  goma_disabled = "true"
+} else {
+  goma_disabled = "false"
 }
 
 # Copy the VS runtime DLL for the default toolchain to the root build directory
@@ -334,6 +344,46 @@ if (host_os == "win") {
   clang_cl = "clang-cl"
 }
 
+# arm toolchains. Only define these when the target architecture is arm
+# since we don't do any arm cross compiles when targeting 64-bit (the
+# build does generate some 64-bit stuff from 32-bit/arm target builds).
+if (target_cpu == "arm") {
+  arm_toolchain_data = exec_script("setup_toolchain.py",
+                                   [
+                                     visual_studio_path,
+                                     windows_sdk_path,
+                                     visual_studio_runtime_dirs,
+                                     "arm",
+                                     "environment.arm",
+                                     goma_disabled,
+                                     "desktop",
+                                   ],
+                                   "scope")
+
+  msvc_toolchain("arm") {
+    environment = "environment.arm"
+    cl = "${goma_prefix}\"${arm_toolchain_data.vc_bin_dir}/cl.exe\""
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = false
+      is_target_winuwp = false
+    }
+  }
+
+  msvc_toolchain("win_clang_arm") {
+    environment = "environment.arm"
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${goma_prefix}$prefix/${clang_cl}"
+    sys_include_flags = "${arm_toolchain_data.include_flags_imsvc}"
+
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = true
+      is_target_winuwp = false
+    }
+  }
+}
+
 # 32-bit toolchains. Only define these when the target architecture is 32-bit
 # since we don't do any 32-bit cross compiles when targeting 64-bit (the
 # build does generate some 64-bit stuff from 32-bit target builds).
@@ -344,6 +394,9 @@ if (target_cpu == "x86") {
                                      windows_sdk_path,
                                      visual_studio_runtime_dirs,
                                      "x86",
+                                     "environment.x86",
+                                     goma_disabled,
+                                     "desktop",
                                    ],
                                    "scope")
 
@@ -353,6 +406,7 @@ if (target_cpu == "x86") {
     toolchain_args = {
       current_cpu = "x86"
       is_clang = false
+      is_target_winuwp = false
     }
   }
 
@@ -365,6 +419,7 @@ if (target_cpu == "x86") {
     toolchain_args = {
       current_cpu = "x86"
       is_clang = true
+      is_target_winuwp = false
     }
   }
 }
@@ -376,6 +431,9 @@ x64_toolchain_data = exec_script("setup_toolchain.py",
                                    windows_sdk_path,
                                    visual_studio_runtime_dirs,
                                    "x64",
+                                   "environment.x64",
+                                   goma_disabled,
+                                   "desktop",
                                  ],
                                  "scope")
 
@@ -390,6 +448,7 @@ template("win_x64_toolchains") {
       }
       is_clang = false
       current_cpu = "x64"
+      is_target_winuwp = false
     }
   }
 
@@ -405,45 +464,10 @@ template("win_x64_toolchains") {
       }
       is_clang = true
       current_cpu = "x64"
+      is_target_winuwp = false
     }
   }
 }
-
-# arm toolchains. Only define these when the target architecture is 32-bit
-# since we don't do any 32-bit cross compiles when targeting 64-bit (the
-# build does generate some 64-bit stuff from 32-bit target builds).
-if (target_cpu == "arm") {
-  arm_toolchain_data = exec_script("setup_toolchain.py",
-                                   [
-                                     visual_studio_path,
-                                     windows_sdk_path,
-                                     visual_studio_runtime_dirs,
-                                     "arm",
-                                   ],
-                                   "scope")
-
-  msvc_toolchain("arm") {
-    environment = "environment.arm"
-    cl = "${goma_prefix}\"${arm_toolchain_data.vc_bin_dir}/cl.exe\""
-    toolchain_args = {
-      current_cpu = "arm"
-      is_clang = false
-    }
-  }
-
-  msvc_toolchain("clang_arm") {
-    environment = "environment.arm"
-    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
-    cl = "${goma_prefix}$prefix/${clang_cl}"
-    sys_include_flags = "${arm_toolchain_data.include_flags_imsvc}"
-
-    toolchain_args = {
-      current_cpu = "arm"
-      is_clang = true
-    }
-  }
-}
-
 
 win_x64_toolchains("x64") {
   toolchain_args = {
@@ -463,66 +487,77 @@ win_x64_toolchains("nacl_win64") {
 }
 
 # WinUWP toolchains. Only define these when targeting them.
-if (is_winuwp) {
+
+if (is_target_winuwp) {
+  if (target_cpu == "arm") {
+    store_arm_toolchain_data = exec_script("setup_toolchain.py",
+                                           [
+                                             visual_studio_path,
+                                             windows_sdk_path,
+                                             visual_studio_runtime_dirs,
+                                             "arm",
+                                             "environment.store_arm",
+                                             goma_disabled,
+                                             "store",
+                                           ],
+                                           "scope")
+
+    msvc_toolchain("winuwp_arm") {
+      environment = "environment.store_arm"
+      cl = "${goma_prefix}\"${store_arm_toolchain_data.vc_bin_dir}/cl.exe\""
+      toolchain_args = {
+        current_cpu = "arm"
+        is_clang = false
+        is_target_winuwp = true
+      }
+    }
+  }
+
   if (target_cpu == "x86") {
-    winuwp_x86_toolchain_data = exec_script("setup_toolchain.py",
-                                     [
-                                       visual_studio_path,
-                                       windows_sdk_path,
-                                       visual_studio_runtime_dirs,
-                                       "x86",
-                                       "store",
-                                     ],
-                                     "scope")
+    store_x86_toolchain_data = exec_script("setup_toolchain.py",
+                                           [
+                                             visual_studio_path,
+                                             windows_sdk_path,
+                                             visual_studio_runtime_dirs,
+                                             "x86",
+                                             "environment.store_x86",
+                                             goma_disabled,
+                                             "store",
+                                           ],
+                                           "scope")
 
     msvc_toolchain("winuwp_x86") {
-      environment = "environment.winuwp_x86"
-      cl = "${goma_prefix}\"${winuwp_x86_toolchain_data.vc_bin_dir}\cl.exe\""
+      environment = "environment.store_x86"
+      cl = "${goma_prefix}\"${store_x86_toolchain_data.vc_bin_dir}/cl.exe\""
       toolchain_args = {
-        is_clang = false
         current_cpu = "x86"
+        is_clang = false
+        is_target_winuwp = true
       }
     }
   }
 
   if (target_cpu == "x64") {
-    winuwp_x64_toolchain_data = exec_script("setup_toolchain.py",
-                                     [
-                                       visual_studio_path,
-                                       windows_sdk_path,
-                                       visual_studio_runtime_dirs,
-                                       "x64",
-                                       "store"
-                                     ],
-                                     "scope")
+    store_x64_toolchain_data = exec_script("setup_toolchain.py",
+                                           [
+                                             visual_studio_path,
+                                             windows_sdk_path,
+                                             visual_studio_runtime_dirs,
+                                             "x64",
+                                             "environment.store_x64",
+                                             goma_disabled,
+                                             "store",
+                                           ],
+                                           "scope")
+
     msvc_toolchain("winuwp_x64") {
-      environment = "environment.winuwp_x64"
-      cl = "${goma_prefix}\"${winuwp_x64_toolchain_data.vc_bin_dir}\cl.exe\""
+      environment = "environment.store_x64"
+      cl = "${goma_prefix}\"${store_x64_toolchain_data.vc_bin_dir}/cl.exe\""
       toolchain_args = {
-        is_clang = false
         current_cpu = "x64"
-      }
-    }
-  }
-
-  if (target_cpu == "arm") {
-    winuwp_arm_toolchain_data = exec_script("setup_toolchain.py",
-                                     [
-                                       visual_studio_path,
-                                       windows_sdk_path,
-                                       visual_studio_runtime_dirs,
-                                       "arm",
-                                       "store"
-                                     ],
-                                     "scope")
-    msvc_toolchain("winuwp_arm") {
-      environment = "environment.winuwp_arm"
-      cl = "${goma_prefix}\"${winuwp_arm_toolchain_data.vc_bin_dir}\cl.exe\""
-      toolchain_args = {
         is_clang = false
-        current_cpu = "arm"
+        is_target_winuwp = true
       }
     }
   }
-
 }
