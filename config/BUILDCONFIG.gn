@@ -171,7 +171,7 @@ declare_args() {
 
 declare_args() {
   # Define target_os as "winuwp" if targetting a Windows UWP store application.
-  is_target_winuwp = (target_os == "winuwp")
+  is_target_winuwp = target_os == "winuwp"
 }
 
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
@@ -548,13 +548,9 @@ if (is_win) {
     "//build/config/win:vs_code_analysis",
   ]
   if (is_target_winuwp) {
-    default_compiler_configs += [
-      "//build/config/win:winuwp",
-    ]
+    default_compiler_configs += [ "//build/config/win:winuwp" ]
   } else {
-    default_compiler_configs += [
-      "//build/config/win:desktop",
-    ]
+    default_compiler_configs += [ "//build/config/win:desktop" ]
   }
 }
 

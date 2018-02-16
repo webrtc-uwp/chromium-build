@@ -247,7 +247,7 @@ config("default_libs") {
       libs += [
         "dloadhelper.lib",
         "WindowsApp.lib",
-      ]    
+      ]
     } else {
       # These libraries are not compatible with Windows UWP (i.e. store apps.)
       libs += [

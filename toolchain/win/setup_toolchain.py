@@ -187,7 +187,7 @@ def main():
     target_store = False
   else:
     target_store = False
-  
+
   cpus = ('x86', 'x64', 'arm')
   assert target_cpu in cpus
   vc_bin_dir = ''
@@ -209,33 +209,33 @@ def main():
         if os.path.exists(os.path.join(path, 'cl.exe')):
           vc_bin_dir = os.path.realpath(path)
           break
-      
+
       for path in env['LIB'].split(os.pathsep):
         if os.path.exists(os.path.join(path, 'msvcrt.lib')):
           vc_lib_path = os.path.realpath(path)
           break
-      
+
       for path in env['LIB'].split(os.pathsep):
         if os.path.exists(os.path.join(path, 'atls.lib')):
           vc_lib_atlmfc_path = os.path.realpath(path)
           break
-      
+
       for path in env['LIB'].split(os.pathsep):
         if os.path.exists(os.path.join(path, 'User32.Lib')):
           vc_lib_um_path = os.path.realpath(path)
           break
-      
+
       # The separator for INCLUDE here must match the one used in
       # _LoadToolchainEnv() above.
       include = [p.replace('"', r'\"') for p in env['INCLUDE'].split(';') if p]
       include_I = ' '.join(['"/I' + i + '"' for i in include])
       include_imsvc = ' '.join(['"-imsvc' + i + '"' for i in include])
-      
+
       if (environment_block_name != ''):
         env_block = _FormatAsEnvironmentBlock(env)
         with open(environment_block_name, 'wb') as f:
           f.write(env_block)
-  
+
   assert vc_bin_dir
   print 'vc_bin_dir = ' + gn_helpers.ToGNString(vc_bin_dir)
   assert include_I
