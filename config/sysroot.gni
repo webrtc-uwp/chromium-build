@@ -68,7 +68,7 @@ if (current_os == target_os && current_cpu == target_cpu &&
         exec_script("//build/dir_exists.py",
                     [ rebase_path(sysroot) ],
                     "string") == "True",
-        "Missing sysroot ($sysroot). To fix, run: build/linux/sysroot_scripts/install-sysroot.py --arch=$_script_arch")
+        "Missing sysroot ($sysroot). To fix, run from the current directory: webrtc/xplatform/chromium/build/linux/sysroot_scripts/install-sysroot-alt.py --arch=$_script_arch")
   }
 } else if (is_mac) {
   import("//build/config/mac/mac_sdk.gni")
