@@ -153,9 +153,12 @@ def DetectVisualStudioPath():
     # For now we use a hardcoded default with an environment variable override.
     for path in (
         os.environ.get('vs2017_install'),
-        os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Professional'),
-        os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Enterprise'),
-        os.path.expandvars('%ProgramFiles(x86)%/Microsoft Visual Studio/2017/Community')):
+        os.path.expandvars('%ProgramFiles(x86)%'
+                           '/Microsoft Visual Studio/2017/Enterprise'),
+        os.path.expandvars('%ProgramFiles(x86)%'
+                           '/Microsoft Visual Studio/2017/Professional'),
+        os.path.expandvars('%ProgramFiles(x86)%'
+                           '/Microsoft Visual Studio/2017/Community')):
       if path and os.path.exists(path):
         return path
   else:
@@ -418,7 +421,8 @@ def SetEnvironmentAndGetSDKDir():
 
   # If WINDOWSSDKDIR is not set, search the default SDK path and set it.
   if not 'WINDOWSSDKDIR' in os.environ:
-    default_sdk_path = os.path.expandvars('%ProgramFiles(x86)%\\Windows Kits\\10')
+    default_sdk_path = os.path.expandvars('%ProgramFiles(x86)%'
+                                          '\\Windows Kits\\10')
     if os.path.isdir(default_sdk_path):
       os.environ['WINDOWSSDKDIR'] = default_sdk_path
 

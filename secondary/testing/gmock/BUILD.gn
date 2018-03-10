@@ -62,7 +62,7 @@ static_library("gmock_main") {
   deps = [
     ":gmock",
   ]
-  if (is_winuwp) {
+  if (is_target_winuwp) {
     deps += [ "//third_party/winuwp_compat:wrap_main_utf8_cc" ]
   }
 }

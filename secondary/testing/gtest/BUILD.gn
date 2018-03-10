@@ -140,7 +140,7 @@ source_set("gtest_main") {
   deps = [
     ":gtest",
   ]
-  if (is_winuwp) {
+  if (is_target_winuwp) {
     deps += [ "//third_party/winuwp_compat:wrap_main_utf8_cc" ]
   }
 }

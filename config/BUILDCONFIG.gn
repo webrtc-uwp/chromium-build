@@ -169,6 +169,11 @@ declare_args() {
       is_debug && current_os != "ios" && current_os != "fuchsia"
 }
 
+declare_args() {
+  # Define target_os as "winuwp" if targetting a Windows UWP store application.
+  is_target_winuwp = target_os == "winuwp"
+}
+
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
 
 # ==============================================================================
@@ -221,7 +226,6 @@ if (host_toolchain == "") {
 
 _default_toolchain = ""
 
-is_winuwp = false
 if (target_os == "android") {
   assert(host_os == "linux" || host_os == "mac",
          "Android builds are only supported on Linux and Mac hosts.")
@@ -252,12 +256,17 @@ if (target_os == "android") {
   } else {
     _default_toolchain = "//build/toolchain/win:$target_cpu"
   }
+} else if (target_os == "winuwp") {
+  # Can only target WinUWP on a Windows platform and only x86, x64 and arm are
+  # supported target CPUs.
+  assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm")
+  if (is_clang) {
+    _default_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
+  } else {
+    _default_toolchain = "//build/toolchain/win:winuwp_$target_cpu"
+  }
 } else if (target_os == "aix") {
   _default_toolchain = "//build/toolchain/aix:$target_cpu"
-} else if (target_os == "winuwp_81" || target_os == "winuwp_81_phone" ||
-           target_os == "winuwp_10") {
-  is_winuwp = true
-  _default_toolchain = "//build/toolchain/win:winuwp_$target_cpu"
 } else {
   assert(false, "Unsupported target_os: $target_os")
 }
@@ -288,8 +297,7 @@ if (custom_toolchain != "") {
 # aix or one of the BSDs. If you need to check these, just check the
 # current_os value directly.
 
-if (current_os == "win" || current_os == "winuwp_81" ||
-    current_os == "winuwp_81_phone" || current_os == "winuwp_10") {
+if (current_os == "win") {
   is_android = false
   is_chromeos = false
   is_fuchsia = false
@@ -420,6 +428,13 @@ if (!is_win) {
     "*.rc",
   ]
 }
+if (!is_target_winuwp) {
+  sources_assignment_filter += [
+    "*_winuwp.cc",
+    "*_winuwp.h",
+    "*_winuwp_unittest.cc",
+  ]
+}
 if (!is_mac) {
   sources_assignment_filter += [
     "*_mac.h",
@@ -531,8 +546,12 @@ if (is_win) {
     "//build/config/win:unicode",
     "//build/config/win:winver",
     "//build/config/win:vs_code_analysis",
-    "//build/config/win:target_winuwp",
   ]
+  if (is_target_winuwp) {
+    default_compiler_configs += [ "//build/config/win:winuwp" ]
+  } else {
+    default_compiler_configs += [ "//build/config/win:desktop" ]
+  }
 }
 
 if (is_posix) {

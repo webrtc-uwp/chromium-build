@@ -8,6 +8,10 @@ declare_args() {
   # Set to true to enable distributed compilation using Goma.
   use_goma = false
 
+  # Set to true to disable goma without update of command line.
+  # Changing this value does not cause full rebuild.
+  disable_goma = false
+
   # Set the default value based on the platform.
   if (is_win) {
     # Absolute directory containing the gomacc.exe binary.
