@@ -169,11 +169,6 @@ declare_args() {
       is_debug && current_os != "ios" && current_os != "fuchsia"
 }
 
-declare_args() {
-  # Define target_os as "winuwp" if targetting a Windows UWP store application.
-  is_target_winuwp = target_os == "winuwp"
-}
-
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
 
 # ==============================================================================
@@ -257,14 +252,11 @@ if (target_os == "android") {
     _default_toolchain = "//build/toolchain/win:$target_cpu"
   }
 } else if (target_os == "winuwp") {
-  # Can only target WinUWP on a Windows platform and only x86, x64 and arm are
-  # supported target CPUs.
-  assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm")
-  if (is_clang) {
-    _default_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
-  } else {
-    _default_toolchain = "//build/toolchain/win:winuwp_$target_cpu"
-  }
+  # Only target WinUWP on for a Windows store application and only
+  # x86, x64 and arm are supported target CPUs.
+  assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+         target_cpu == "arm64")
+  _default_toolchain = "//build/toolchain/win:uwp_$target_cpu"
 } else if (target_os == "aix") {
   _default_toolchain = "//build/toolchain/aix:$target_cpu"
 } else {
@@ -297,7 +289,7 @@ if (custom_toolchain != "") {
 # aix or one of the BSDs. If you need to check these, just check the
 # current_os value directly.
 
-if (current_os == "win") {
+if (current_os == "win" || current_os == "winuwp") {
   is_android = false
   is_chromeos = false
   is_fuchsia = false
@@ -428,13 +420,6 @@ if (!is_win) {
     "*.rc",
   ]
 }
-if (!is_target_winuwp) {
-  sources_assignment_filter += [
-    "*_winuwp.cc",
-    "*_winuwp.h",
-    "*_winuwp_unittest.cc",
-  ]
-}
 if (!is_mac) {
   sources_assignment_filter += [
     "*_mac.h",
@@ -547,11 +532,6 @@ if (is_win) {
     "//build/config/win:winver",
     "//build/config/win:vs_code_analysis",
   ]
-  if (is_target_winuwp) {
-    default_compiler_configs += [ "//build/config/win:winuwp" ]
-  } else {
-    default_compiler_configs += [ "//build/config/win:desktop" ]
-  }
 }
 
 if (is_posix) {

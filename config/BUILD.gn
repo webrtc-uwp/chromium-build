@@ -242,7 +242,7 @@ config("default_libs") {
       # some extra libraries, please just add a libs = [ "foo.lib" ] to your
       # target that needs it.
     ]
-    if (is_target_winuwp) {
+    if (current_os == "winuwp") {
       # These libraries are needed for Windows UWP (i.e. store apps).
       libs += [
         "dloadhelper.lib",
