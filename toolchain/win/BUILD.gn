@@ -513,6 +513,30 @@ if (is_target_winuwp) {
     }
   }
 
+  if (target_cpu == "arm64") {
+    store_arm_toolchain_data = exec_script("setup_toolchain.py",
+                                           [
+                                             visual_studio_path,
+                                             windows_sdk_path,
+                                             visual_studio_runtime_dirs,
+                                             "arm64",
+                                             "environment.store_arm64",
+                                             goma_disabled,
+                                             "store",
+                                           ],
+                                           "scope")
+
+    msvc_toolchain("winuwp_arm64") {
+      environment = "environment.store_arm64"
+      cl = "${goma_prefix}\"${store_arm_toolchain_data.vc_bin_dir}/cl.exe\""
+      toolchain_args = {
+        current_cpu = "arm64"
+        is_clang = false
+        is_target_winuwp = true
+      }
+    }
+  }
+  
   if (target_cpu == "x86") {
     store_x86_toolchain_data = exec_script("setup_toolchain.py",
                                            [

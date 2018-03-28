@@ -237,8 +237,8 @@ config("winver") {
 
 # Linker flags for Windows SDK setup, this is applied only to EXEs and DLLs.
 config("sdk_link") {
-  assert(current_cpu == "x64" || current_cpu == "x86" || current_cpu == "arm",
-         "Only supports x64, x86 and arm CPUs")
+  assert(current_cpu == "x64" || current_cpu == "x86" || current_cpu == "arm" || current_cpu == "arm64",
+         "Only supports x64, x86, arm and arm64 CPUs")
   if (current_cpu == "x64") {
     ldflags = [ "/MACHINE:X64" ]
   } else if (current_cpu == "x86") {

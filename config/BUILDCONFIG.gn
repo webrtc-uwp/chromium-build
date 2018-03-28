@@ -257,9 +257,9 @@ if (target_os == "android") {
     _default_toolchain = "//build/toolchain/win:$target_cpu"
   }
 } else if (target_os == "winuwp") {
-  # Can only target WinUWP on a Windows platform and only x86, x64 and arm are
+  # Can only target WinUWP on a Windows platform and only x86, x64, arm and arm64 are
   # supported target CPUs.
-  assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm")
+  assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64")
   if (is_clang) {
     _default_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
   } else {

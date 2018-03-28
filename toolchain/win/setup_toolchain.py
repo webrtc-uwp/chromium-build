@@ -89,7 +89,7 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
   # Check if we are running in the SDK command line environment and use
   # the setup script from the SDK if so. |cpu| should be either
   # 'x86' or 'x64' or 'arm'.
-  assert cpu in ('x86', 'x64', 'arm')
+  assert cpu in ('x86', 'x64', 'arm', 'arm64')
   if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', 1))) and sdk_dir:
     # Load environment from json file.
     env = os.path.normpath(os.path.join(sdk_dir, 'bin/SetEnv.%s.json' % cpu))
@@ -148,6 +148,8 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
       args.append('amd64')
     if (cpu == 'arm'):
       args.append('amd64_arm')
+    if (cpu == 'arm64'):
+      args.append('amd64_arm64')
     # Store target must come before any SDK version declaration
     if (target_store):
       args.append(['store'])
@@ -188,7 +190,7 @@ def main():
   else:
     target_store = False
 
-  cpus = ('x86', 'x64', 'arm')
+  cpus = ('x86', 'x64', 'arm', 'arm64')
   assert target_cpu in cpus
   vc_bin_dir = ''
   vc_lib_path = ''
