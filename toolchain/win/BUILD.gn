@@ -203,7 +203,11 @@ template("msvc_toolchain") {
       else {
         ml = "armasm.exe"
       }
-      command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+      if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+      } else {
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+      }
       description = "ASM {{output}}"
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
