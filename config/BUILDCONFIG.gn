@@ -215,7 +215,7 @@ if (host_toolchain == "") {
     if (is_clang) {
       host_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
     } else {
-      host_toolchain = "//build/toolchain/win:$target_cpu"
+      host_toolchain = "//build/toolchain/win:$host_cpu"
     }
   } else if (host_os == "aix") {
     host_toolchain = "//build/toolchain/aix:$host_cpu"

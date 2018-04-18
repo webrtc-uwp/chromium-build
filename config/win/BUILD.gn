@@ -313,7 +313,9 @@ config("common_linker_setup") {
   # Chrome.dll don't stick from one launch to the next. For this reason, we
   # turn ASLR off in debug builds.
   if (is_debug) {
-    ldflags += [ "/DYNAMICBASE:NO" ]
+    if (current_cpu != "arm" && current_cpu != "arm64") {
+      ldflags += [ "/DYNAMICBASE:NO" ]
+    }
   } else {
     ldflags += [ "/DYNAMICBASE" ]
   }

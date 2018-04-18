@@ -908,7 +908,7 @@ config("clang_stackrealign") {
 }
 
 config("compiler_arm_fpu") {
-  if (current_cpu == "arm" && !is_ios && !is_nacl) {
+  if ((current_cpu == "arm" || current_cpu == "arm64") && !is_ios && !is_nacl && !is_win) {
     cflags = [ "-mfpu=$arm_fpu" ]
     asmflags = cflags
   }
@@ -1378,7 +1378,7 @@ config("wexit_time_destructors") {
 #
 # TODO(jschuh): crbug.com/167187 fix this and delete this config.
 config("no_size_t_to_int_warning") {
-  if (is_win && current_cpu == "x64") {
+  if (is_win && (current_cpu == "x64" || current_cpu == "arm" || current_cpu == "arm64")) {
     cflags = [ "/wd4267" ]
   }
 }

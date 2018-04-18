@@ -119,13 +119,13 @@ static_library("simd") {
     sources = [
       "simd/jsimd_x86_64.c",
     ]
-  } else if (current_cpu == "arm" && arm_version >= 7 &&
-             (arm_use_neon || arm_optionally_use_neon)) {
+  } else if ((target_os != "winuwp") && (current_cpu == "arm" && arm_version >= 7 &&
+             (arm_use_neon || arm_optionally_use_neon))) {
     sources = [
       "simd/jsimd_arm.c",
       "simd/jsimd_arm_neon.S",
     ]
-  } else if (current_cpu == "arm64") {
+  } else if ((target_os != "winuwp") && (current_cpu == "arm64")) {
     sources = [
       "simd/jsimd_arm64.c",
       "simd/jsimd_arm64_neon.S",
