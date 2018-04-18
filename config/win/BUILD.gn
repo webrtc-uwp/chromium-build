@@ -233,6 +233,7 @@ config("runtime_library") {
     } else {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
     }
+    cflags_cc = []
     cflags_cc += [
       "/ZW",
       "/EHsc",
