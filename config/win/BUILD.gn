@@ -189,6 +189,7 @@ config("vs_code_analysis") {
 # :runtime_library vs. :compiler.
 config("runtime_library") {
   cflags = []
+  cflags_cc = []
 
   # Defines that set up the CRT.
   defines = [
@@ -233,7 +234,6 @@ config("runtime_library") {
     } else {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
     }
-    cflags_cc = []
     cflags_cc += [
       "/ZW",
       "/EHsc",
