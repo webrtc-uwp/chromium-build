@@ -200,8 +200,10 @@ template("msvc_toolchain") {
       } else if (toolchain_args.current_cpu == "x86") {
         ml = "ml.exe"
       }
-      else {
+      else if (toolchain_args.current_cpu == "arm"){
         ml = "armasm.exe"
+      } else {
+        ml = "armasm64.exe"
       }
       if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
         command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
