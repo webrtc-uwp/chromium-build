@@ -140,6 +140,9 @@ source_set("gtest_main") {
   deps = [
     ":gtest",
   ]
+  if (current_os == "winuwp") {
+    deps += [ "//third_party/winuwp_compat:wrap_main_utf8_cc" ]
+  }
 }
 
 if (is_ios) {

@@ -19,4 +19,4 @@ ciopfs
 /linux/ubuntu_*-sysroot/
 /ios_files
 /mac_files
-
+*.pyc
