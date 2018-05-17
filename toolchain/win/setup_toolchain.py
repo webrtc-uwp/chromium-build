@@ -88,7 +88,7 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
   running binaries from the toolchain (e.g. INCLUDE and PATH for cl.exe)."""
   # Check if we are running in the SDK command line environment and use
   # the setup script from the SDK if so. |cpu| should be either
-  # 'x86' or 'x64' or 'arm'.
+  # 'x86' or 'x64' or 'arm' or 'arm64'.
   assert cpu in ('x86', 'x64', 'arm', 'arm64')
   if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', 1))) and sdk_dir:
     # Load environment from json file.
@@ -141,15 +141,11 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
       script_path = other_path
     # Chromium requires the 10.0.14393.0 SDK or higher - previous versions don't
     # have all of the required declarations.
-    args = [script_path]
-    if (cpu == 'x86'):
-      args.append('amd64_x86')
-    if (cpu == 'x64'):
-      args.append('amd64')
-    if (cpu == 'arm'):
-      args.append('amd64_arm')
-    if (cpu == 'arm64'):
-      args.append('amd64_arm64')
+    cpu_arg = "amd64"
+    if (cpu != 'x64'):
+      # x64 is default target CPU thus any other CPU requires a target set
+      cpu_arg += '_' + cpu
+    args = [script_path, cpu_arg]
     # Store target must come before any SDK version declaration
     if (target_store):
       args.append(['store'])
@@ -173,20 +169,20 @@ def main():
   if len(sys.argv) != 8:
     print('Usage setup_toolchain.py '
           '<visual studio path> <win sdk path> '
-          '<runtime dirs> <target_cpu> '
-          '<environment block name|none> <goma_disabled> <store|desktop>')
+          '<runtime dirs> <target_os> <target_cpu> '
+          '<environment block name|none> <goma_disabled>')
     sys.exit(2)
   win_sdk_path = sys.argv[2]
   runtime_dirs = sys.argv[3]
-  target_cpu = sys.argv[4]
-  environment_block_name = sys.argv[5]
+  target_os = sys.argv[4]
+  target_cpu = sys.argv[5]
+  environment_block_name = sys.argv[6]
   if (environment_block_name == 'none'):
     environment_block_name = ''
-  goma_disabled = sys.argv[6]
-  if (sys.argv[7] == 'store'):
+  goma_disabled = sys.argv[7]
+
+  if (target_os == 'winuwp'):
     target_store = True
-  elif (sys.argv[7] == 'desktop'):
-    target_store = False
   else:
     target_store = False
 
@@ -202,27 +198,27 @@ def main():
   # ninja_use_custom_environment_files?
 
   for cpu in cpus:
-    # Extract environment variables for subprocesses.
-    env = _LoadToolchainEnv(cpu, win_sdk_path, target_store)
-    env['PATH'] = runtime_dirs + os.pathsep + env['PATH']
-
     if cpu == target_cpu:
-      for path in env['PATH'].split(os.pathsep):
+      # Extract environment variables for subprocesses.
+      env = _LoadToolchainEnv(cpu, win_sdk_path, target_store)
+      env['PATH'] = runtime_dirs + os.pathsep + env['PATH']
+
+      for path in env['PATH'].split(';'):
         if os.path.exists(os.path.join(path, 'cl.exe')):
           vc_bin_dir = os.path.realpath(path)
           break
 
-      for path in env['LIB'].split(os.pathsep):
+      for path in env['LIB'].split(';'):
         if os.path.exists(os.path.join(path, 'msvcrt.lib')):
           vc_lib_path = os.path.realpath(path)
           break
 
-      for path in env['LIB'].split(os.pathsep):
+      for path in env['LIB'].split(';'):
         if os.path.exists(os.path.join(path, 'atls.lib')):
           vc_lib_atlmfc_path = os.path.realpath(path)
           break
 
-      for path in env['LIB'].split(os.pathsep):
+      for path in env['LIB'].split(';'):
         if os.path.exists(os.path.join(path, 'User32.Lib')):
           vc_lib_um_path = os.path.realpath(path)
           break
