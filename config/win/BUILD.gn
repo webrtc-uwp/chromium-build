@@ -213,7 +213,7 @@ config("runtime_library") {
     "_SECURE_ATL",
   ]
 
-  if (!use_vs_code_analysis) {
+  if ((!use_vs_code_analysis) && (current_os != "winuwp")) {
     # This is required for ATL to use XP-safe versions of its functions.
     # However it is prohibited when using /analyze
     defines += [ "_USING_V110_SDK71_" ]
