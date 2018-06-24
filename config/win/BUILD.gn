@@ -237,6 +237,8 @@ config("runtime_library") {
     cflags_cc += [
       "/ZW",
       "/EHsc",
+      "/std:c++17",
+      "/Zc:__cplusplus",
     ]
 
     # This warning is given because the linker cannot tell the difference
