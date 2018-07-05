@@ -213,10 +213,11 @@ def main():
           vc_lib_path = os.path.realpath(path)
           break
 
-      for path in env['LIB'].split(';'):
-        if os.path.exists(os.path.join(path, 'atls.lib')):
-          vc_lib_atlmfc_path = os.path.realpath(path)
-          break
+      if (cpu != 'arm' and cpu != 'arm64'):
+        for path in env['LIB'].split(';'):
+          if os.path.exists(os.path.join(path, 'atls.lib')): 
+            vc_lib_atlmfc_path = os.path.realpath(path)
+            break
 
       for path in env['LIB'].split(';'):
         if os.path.exists(os.path.join(path, 'User32.Lib')):
@@ -244,7 +245,8 @@ def main():
   print 'vc_lib_path = ' + gn_helpers.ToGNString(vc_lib_path)
   if (target_store != True):
     # Path is assumed not to exist for desktop applications
-    assert vc_lib_atlmfc_path
+    if (cpu != 'arm' and cpu != 'arm64'):
+      assert vc_lib_atlmfc_path
   # Possible atlmfc library path gets introduced in the future for store thus
   # output result if a result exists.
   if (vc_lib_atlmfc_path != ''):
