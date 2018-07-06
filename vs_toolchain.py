@@ -249,10 +249,12 @@ def _CopyPGORuntime(target_dir, target_cpu):
   if env_version == '2017':
     pgo_runtime_root = FindVCToolsRoot()
     assert pgo_runtime_root
+    print 'pgo_runtime_root %s ' % (pgo_runtime_root)
     # There's no version of pgosweep.exe in HostX64/x86, so we use the copy
     # from HostX86/x86.
     pgo_x86_runtime_dir = os.path.join(pgo_runtime_root, 'HostX86', 'x86')
     pgo_x64_runtime_dir = os.path.join(pgo_runtime_root, 'HostX64', 'x64')
+    pgo_arm_runtime_dir = os.path.join(pgo_runtime_root, 'arm')
   else:
     raise Exception('Unexpected toolchain version: %s.' % env_version)
 
@@ -265,6 +267,8 @@ def _CopyPGORuntime(target_dir, target_cpu):
       source = os.path.join(pgo_x86_runtime_dir, runtime)
     elif target_cpu == 'x64':
       source = os.path.join(pgo_x64_runtime_dir, runtime)
+    elif target_cpu == 'arm':
+      source = os.path.join(pgo_arm_runtime_dir, runtime)	  
     else:
       raise NotImplementedError("Unexpected target_cpu value: " + target_cpu)
     if not os.path.exists(source):
