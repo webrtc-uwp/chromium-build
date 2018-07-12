@@ -1020,7 +1020,7 @@ config("clang_revision") {
 }
 
 config("compiler_arm_fpu") {
-  if (current_cpu == "arm" && !is_ios && !is_nacl) {
+  if ((current_cpu == "arm" || current_cpu == "arm64") && !is_ios && !is_nacl && !is_win) {
     cflags = [ "-mfpu=$arm_fpu" ]
     asmflags = cflags
   }
@@ -1556,7 +1556,7 @@ config("wexit_time_destructors") {
 #
 # TODO(jschuh): crbug.com/167187 fix this and delete this config.
 config("no_size_t_to_int_warning") {
-  if (is_win && current_cpu == "x64") {
+  if (is_win && (current_cpu == "x64" || current_cpu == "arm" || current_cpu == "arm64")) {
     cflags = [ "/wd4267" ]
   }
 }
@@ -1960,7 +1960,11 @@ config("symbols") {
       # Note that with VC++ this requires is_win_fastlink, enforced elsewhere.
       cflags = [ "/Z7" ]  # Debug information in the .obj files.
     } else {
-      cflags = [ "/Zi" ]  # Produce PDB file, no edit and continue.
+      if (is_clang) {
+        cflags = [ "" ]
+      } else {
+        cflags = [ "/Zi" ]  # Produce PDB file, no edit and continue.
+      }
     }
 
     if (is_win_fastlink) {
