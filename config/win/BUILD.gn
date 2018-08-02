@@ -88,7 +88,7 @@ config("compiler") {
   if (is_clang) {
     cflags += [ "-fmsc-version=1911" ]
 
-    if (current_cpu == "x86") {
+    if (current_cpu == "x86" || current_cpu == "arm") {
       cflags += [ "-m32" ]
     } else {
       cflags += [ "-m64" ]
@@ -313,8 +313,7 @@ config("winver") {
 
 # Linker flags for Windows SDK setup, this is applied only to EXEs and DLLs.
 config("sdk_link") {
-  assert(current_cpu == "x64" || current_cpu == "x86" || current_cpu == "arm" ||
-             current_cpu == "arm64",
+  assert(current_cpu == "x64" || current_cpu == "x86" || current_cpu == "arm" || current_cpu == "arm64",
          "Only supports x64, x86, arm and arm64 CPUs")
   if (current_cpu == "x64") {
     ldflags = [ "/MACHINE:X64" ]
@@ -369,6 +368,20 @@ config("common_linker_setup") {
     "/NXCOMPAT",
     "/DYNAMICBASE",
   ]
+
+  # ASLR makes debugging with windbg difficult because Chrome.exe and
+  # Chrome.dll share the same base name. As result, windbg will name the
+  # Chrome.dll module like chrome_<base address>, where <base address>
+  # typically changes with each launch. This in turn means that breakpoints in
+  # Chrome.dll don't stick from one launch to the next. For this reason, we
+  # turn ASLR off in debug builds.
+  if (is_debug) {
+    if (current_cpu != "arm" && current_cpu != "arm64") {
+      ldflags += [ "/DYNAMICBASE:NO" ]
+    }
+  } else {
+    ldflags += [ "/DYNAMICBASE" ]
+  }
 
   if (win_linker_timing) {
     ldflags += [

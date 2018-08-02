@@ -172,24 +172,37 @@ template("msvc_toolchain") {
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
       ]
-
-      command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+      if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=armv7-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+      } else {
+          rspfile = "{{output}}.rsp"
+          command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+          rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
+      }
     }
 
     tool("cxx") {
+      
       precompiled_header_type = "msvc"
 
       # The PDB name needs to be different between C and C++ compiled files.
       pdbname = "{{target_out_dir}}/{{label_name}}_cc.pdb"
 
       # See comment in CC tool about quoting.
+      
       depsformat = "msvc"
       description = "CXX {{output}}"
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
       ]
-
-      command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+      
+      if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=armv7-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+      } else {
+        rspfile = "{{output}}.rsp"
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+        rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+      }
     }
 
     tool("rc") {
@@ -204,10 +217,19 @@ template("msvc_toolchain") {
     tool("asm") {
       if (toolchain_args.current_cpu == "x64") {
         ml = "ml64.exe"
-      } else {
+      } else if (toolchain_args.current_cpu == "x86") {
         ml = "ml.exe"
       }
-      command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+      else if (toolchain_args.current_cpu == "arm"){
+        ml = "armasm.exe"
+      } else {
+        ml = "armasm64.exe"
+      }
+      if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+      } else {
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+      }
       description = "ASM {{output}}"
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
@@ -464,6 +486,36 @@ win_x64_toolchains("nacl_win64") {
 }
 
 
+# arm clang-cl toolchains. Only define these when the target architecture is arm
+# since we don't do any arm cross compiles when targeting 64-bit (the
+# build does generate some 64-bit stuff from 32-bit/arm target builds).
+if (target_cpu == "arm") {
+  arm_toolchain_data = exec_script("setup_toolchain.py",
+                                   [
+                                     visual_studio_path,
+                                     windows_sdk_path,
+                                     visual_studio_runtime_dirs,
+                                     "win",
+                                     "arm",
+                                     "environment.arm",
+                                     goma_disabled,
+                                   ],
+                                   "scope")
+
+  msvc_toolchain("win_clang_arm") {
+    environment = "environment.arm"
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${goma_prefix}$prefix/${clang_cl}"
+    sys_include_flags = "${arm_toolchain_data.include_flags_imsvc}"
+
+    toolchain_args = {
+      current_cpu = "arm"
+      is_clang = true
+      current_os = "win"
+    }
+  }
+}
+
 # WinUWP toolchains. Only define these when targeting them.
 
 if (target_os == "winuwp") {
@@ -488,6 +540,19 @@ if (target_os == "winuwp") {
       current_os = "winuwp"
       current_cpu = target_cpu
       is_clang = false
+    }
+  }
+  
+  msvc_toolchain("uwp_clang_" + target_cpu) {
+    environment = "environment.store_" + target_cpu
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${goma_prefix}$prefix/${clang_cl}"
+    sys_include_flags = "${store_cpu_toolchain_data.include_flags_imsvc}"
+ 
+    toolchain_args = {
+      current_os = "winuwp"
+      current_cpu = target_cpu
+      is_clang = true
     }
   }
 }
