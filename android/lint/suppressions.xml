@@ -33,8 +33,6 @@ Still reading?
     <ignore regexp="chrome/android/javatests"/>
   </issue>
   <issue id="BadHostnameVerifier" severity="Error">
-    <!-- Safe, used in test only. -->
-    <ignore regexp="net/test/android/javatests/src/org/chromium/net/test/util/TestWebServer.java"/>
   </issue>
   <issue id="ButtonOrder" severity="Error">
     <ignore regexp="chrome/android/java/res/layout/homepage_editor.xml"/>
@@ -57,8 +55,6 @@ Still reading?
     <ignore regexp="clank"/>
     <ignore regexp="com/android/tv"/>
     <ignore regexp="org/chromium/chrome/browser/payments/PaymentRequestMetricsTest.class"/>
-    <ignore regexp="org/chromium/chrome/browser/preferences/website/UsbChooserPreferences"/>
-    <ignore regexp="org/chromium/chrome/browser/preferences/website/UsbDevicePreferences"/>
     <ignore regexp="third_party/cacheinvalidation/src/java/com/google/ipc/invalidation/external/client/contrib/AndroidListenerState.java"/>
   </issue>
   <!-- TODO(crbug.com/635567): Fix this properly. -->
@@ -161,7 +157,7 @@ Still reading?
     <ignore regexp="tools/android/push_apps_to_background/res"/>
     <ignore regexp="ui/android/java/res"/>
     <!-- crbug.com/457918 is tracking missing assets -->
-    <ignore regexp="components/web_contents_delegate_android/java/res"/>
+    <ignore regexp="components/embedder_support/android/java/res"/>
   </issue>
   <issue id="ImpliedQuantity" severity="Error">
     <ignore regexp="chrome/android/chrome_strings_grd"/>
@@ -264,12 +260,11 @@ Still reading?
   <issue id="ResourceType" severity="Error">
     <ignore regexp="/javatests/"/>
   </issue>
+  <!-- TODO(crbug.com/831774): Play Services starts complaining about RestrictedApi. Needs investigation -->
+  <issue id="RestrictedApi" severity="ignore"/>
   <issue id="RtlCompat" severity="ignore"/>
   <issue id="RtlEnabled" severity="ignore"/>
   <issue id="RtlSymmetry" severity="ignore"/>
-  <issue id="SdCardPath">
-    <ignore regexp="content/public/android/java/src/org/chromium/content/browser/MediaResourceGetter.java"/>
-  </issue>
   <issue id="SetJavaScriptEnabled" severity="ignore"/>
   <issue id="SignatureOrSystemPermissions" severity="ignore"/>
   <issue id="SpUsage" severity="Error">
@@ -379,7 +374,7 @@ Still reading?
     <ignore regexp="chrome/android/java/src/org/chromium/chrome/browser/bookmarks/BookmarkItemsAdapter.java"/>
     <ignore regexp="chrome/android/java/src/org/chromium/chrome/browser/instantapps/InstantAppsHandler.java"/>
     <ignore regexp="chrome/android/java/src/org/chromium/chrome/browser/SSLClientCertificateRequest.java"/>
-    <ignore regexp="chrome/android/java/src/org/chromium/chrome/browser/payments/ui/EditorDialog.java"/>
+    <ignore regexp="chrome/android/java/src/org/chromium/chrome/browser/widget/prefeditor/EditorDialog.java"/>
     <ignore regexp="third_party/android_data_chart/java/src/org/chromium/third_party/android/datausagechart/ChartDataUsageView.java"/>
   </issue>
 </lint>

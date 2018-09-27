@@ -50,7 +50,7 @@ def _ExtractImportantEnvironment(output_of_set):
           # path. Add the path to this python here so that if it's not in the
           # path when ninja is run later, python will still be found.
           setting = os.path.dirname(sys.executable) + os.pathsep + setting
-        env[var.upper()] = setting.lower()
+        env[var.upper()] = setting
         break
   if sys.platform in ('win32', 'cygwin'):
     for required in ('SYSTEMROOT', 'TEMP', 'TMP'):
@@ -117,8 +117,10 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
     # Check that the json file contained the same environment as the .cmd file.
     if sys.platform in ('win32', 'cygwin'):
       script = os.path.normpath(os.path.join(sdk_dir, 'Bin/SetEnv.cmd'))
-      assert _ExtractImportantEnvironment(variables) == \
-             _ExtractImportantEnvironment(_LoadEnvFromBat([script, '/' + cpu]))
+      arg = '/' + cpu
+      json_env = _ExtractImportantEnvironment(variables)
+      cmd_env = _ExtractImportantEnvironment(_LoadEnvFromBat([script, arg]))
+      assert _LowercaseDict(json_env) == _LowercaseDict(cmd_env)
   else:
     if 'GYP_MSVS_OVERRIDE_PATH' not in os.environ:
       os.environ['GYP_MSVS_OVERRIDE_PATH'] = _DetectVisualStudioPath()
@@ -139,8 +141,6 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
         raise Exception('%s is missing - make sure VC++ tools are installed.' %
                         script_path)
       script_path = other_path
-    # Chromium requires the 10.0.14393.0 SDK or higher - previous versions don't
-    # have all of the required declarations.
     cpu_arg = "amd64"
     if (cpu != 'x64'):
       # x64 is default target CPU thus any other CPU requires a target set
@@ -149,9 +149,8 @@ def _LoadToolchainEnv(cpu, sdk_dir, target_store):
     # Store target must come before any SDK version declaration
     if (target_store):
       args.append(['store'])
-    # Chromium requires the 10.0.17134.468 SDK - previous versions don't have
-    # all of the required declarations and 10.0.16299.0 has some
-    # incompatibilities (crbug.com/773476).
+    # Chromium requires the 10.0.17134.0 SDK - previous versions don't have
+    # all of the required declarations.
     args.append('10.0.17134.0')
     variables = _LoadEnvFromBat(args)
   return _ExtractImportantEnvironment(variables)
@@ -169,12 +168,24 @@ def _FormatAsEnvironmentBlock(envvar_dict):
   return block
 
 
+def _LowercaseDict(d):
+  """Returns a copy of `d` with both key and values lowercased.
+
+  Args:
+    d: dict to lowercase (e.g. {'A': 'BcD'}).
+
+  Returns:
+    A dict with both keys and values lowercased (e.g.: {'a': 'bcd'}).
+  """
+  return {k.lower(): d[k].lower() for k in d}
+
+
 def main():
-  if len(sys.argv) != 8:
+  if len(sys.argv) != 7:
     print('Usage setup_toolchain.py '
           '<visual studio path> <win sdk path> '
           '<runtime dirs> <target_os> <target_cpu> '
-          '<environment block name|none> <goma_disabled>')
+          '<environment block name|none>')
     sys.exit(2)
   win_sdk_path = sys.argv[2]
   runtime_dirs = sys.argv[3]
@@ -183,7 +194,6 @@ def main():
   environment_block_name = sys.argv[6]
   if (environment_block_name == 'none'):
     environment_block_name = ''
-  goma_disabled = sys.argv[7]
 
   if (target_os == 'winuwp'):
     target_store = True
@@ -197,6 +207,7 @@ def main():
   vc_lib_atlmfc_path = ''
   vc_lib_um_path = ''
   include = ''
+  lib = ''
 
   # TODO(scottmg|goma): Do we need an equivalent of
   # ninja_use_custom_environment_files?
@@ -206,9 +217,8 @@ def main():
       # Extract environment variables for subprocesses.
       env = _LoadToolchainEnv(cpu, win_sdk_path, target_store)
       env['PATH'] = runtime_dirs + os.pathsep + env['PATH']
-      env['GOMA_DISABLED'] = goma_disabled
 
-      for path in env['PATH'].split(';'):
+      for path in env['PATH'].split(os.pathsep):
         if os.path.exists(os.path.join(path, 'cl.exe')):
           vc_bin_dir = os.path.realpath(path)
           break
@@ -218,11 +228,10 @@ def main():
           vc_lib_path = os.path.realpath(path)
           break
 
-      if (cpu != 'arm' and cpu != 'arm64'):
-        for path in env['LIB'].split(';'):
-          if os.path.exists(os.path.join(path, 'atls.lib')): 
-            vc_lib_atlmfc_path = os.path.realpath(path)
-            break
+      for path in env['LIB'].split(';'):
+        if os.path.exists(os.path.join(path, 'atls.lib')):
+          vc_lib_atlmfc_path = os.path.realpath(path)
+          break
 
       for path in env['LIB'].split(';'):
         if os.path.exists(os.path.join(path, 'User32.Lib')):
@@ -232,8 +241,25 @@ def main():
       # The separator for INCLUDE here must match the one used in
       # _LoadToolchainEnv() above.
       include = [p.replace('"', r'\"') for p in env['INCLUDE'].split(';') if p]
-      include_I = ' '.join(['"/I' + i + '"' for i in include])
-      include_imsvc = ' '.join(['"-imsvc' + i + '"' for i in include])
+
+      # Make include path relative to builddir when cwd and sdk in same drive.
+      try:
+        include = map(os.path.relpath, include)
+      except ValueError:
+        pass
+
+      lib = [p.replace('"', r'\"') for p in env['LIB'].split(';') if p]
+      # Make lib path relative to builddir when cwd and sdk in same drive.
+      try:
+        lib = map(os.path.relpath, lib)
+      except ValueError:
+        pass
+
+      def q(s):  # Quote s if it contains spaces or other weird characters.
+        return s if re.match(r'^[a-zA-Z0-9._/\\:-]*$', s) else '"' + s + '"'
+      include_I = ' '.join([q('/I' + i) for i in include])
+      include_imsvc = ' '.join([q('-imsvc' + i) for i in include])
+      libpath_flags = ' '.join([q('-libpath:' + i) for i in lib])
 
       if (environment_block_name != ''):
         env_block = _FormatAsEnvironmentBlock(env)
@@ -258,6 +284,10 @@ def main():
     print 'vc_lib_atlmfc_path = ' + gn_helpers.ToGNString(vc_lib_atlmfc_path)
   assert vc_lib_um_path
   print 'vc_lib_um_path = ' + gn_helpers.ToGNString(vc_lib_um_path)
-  
+  print 'paths = ' + gn_helpers.ToGNString(env['PATH'])
+  assert libpath_flags
+  print 'libpath_flags = ' + gn_helpers.ToGNString(libpath_flags)
+
+
 if __name__ == '__main__':
   main()

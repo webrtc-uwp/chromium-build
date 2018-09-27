@@ -25,6 +25,7 @@ import unittest
 # See http://crbug.com/724524 and https://bugs.python.org/issue7980.
 import _strptime  # pylint: disable=unused-import
 
+# pylint: disable=ungrouped-imports
 from pylib.constants import host_paths
 
 if host_paths.DEVIL_PATH not in sys.path:
@@ -46,9 +47,9 @@ from pylib.results import report_results
 from pylib.results.presentation import test_results_presentation
 from pylib.utils import logdog_helper
 from pylib.utils import logging_utils
+from pylib.utils import test_filter
 
 from py_utils import contextlib_ext
-
 
 _DEVIL_STATIC_CONFIG_FILE = os.path.abspath(os.path.join(
     host_paths.DIR_SOURCE_ROOT, 'build', 'android', 'devil_config.json'))
@@ -91,6 +92,8 @@ def AddTestLauncherOptions(parser):
       '--test-launcher-total-shards',
       type=int, default=os.environ.get('GTEST_TOTAL_SHARDS', 1),
       help='Total number of external shards.')
+
+  test_filter.AddFilterOptions(parser)
 
   return parser
 
@@ -212,10 +215,12 @@ def AddCommonOptions(parser):
 def ProcessCommonOptions(args):
   """Processes and handles all common options."""
   run_tests_helper.SetLogLevel(args.verbose_count, add_handler=False)
+  # pylint: disable=redefined-variable-type
   if args.verbose_count > 0:
     handler = logging_utils.ColorStreamHandler()
   else:
     handler = logging.StreamHandler(sys.stdout)
+  # pylint: enable=redefined-variable-type
   handler.setFormatter(run_tests_helper.CustomFormatter())
   logging.getLogger().addHandler(handler)
 
@@ -300,7 +305,7 @@ def AddGTestOptions(parser):
       help='Host directory to which app data files will be'
            ' saved. Used with --app-data-file.')
   parser.add_argument(
-      '--chartjson-result-file',
+      '--isolated-script-test-perf-output',
       help='If present, store chartjson results on this path.')
   parser.add_argument(
       '--delete-stale-data',
@@ -355,21 +360,6 @@ def AddGTestOptions(parser):
       help='Wait for java debugger to attach before running any application '
            'code. Also disables test timeouts and sets retries=0.')
 
-  filter_group = parser.add_mutually_exclusive_group()
-  filter_group.add_argument(
-      '-f', '--gtest_filter', '--gtest-filter',
-      dest='test_filter',
-      help='googletest-style filter string.',
-      default=os.environ.get('GTEST_FILTER'))
-  filter_group.add_argument(
-      # Deprecated argument.
-      '--gtest-filter-file',
-      # New argument.
-      '--test-launcher-filter-file',
-      dest='test_filter_file', type=os.path.realpath,
-      help='Path to file that contains googletest-style filter strings. '
-           'See also //testing/buildbot/filters/README.md.')
-
 
 def AddInstrumentationTestOptions(parser):
   """Adds Instrumentation test options to |parser|."""
@@ -417,23 +407,14 @@ def AddInstrumentationTestOptions(parser):
       help='Comma-separated list of annotations. Exclude tests with these '
            'annotations.')
   parser.add_argument(
-      '-f', '--test-filter', '--gtest_filter', '--gtest-filter',
-      dest='test_filter',
-      help='Test filter (if not fully qualified, will run all matches).',
-      default=os.environ.get('GTEST_FILTER'))
-  parser.add_argument(
       '--gtest_also_run_disabled_tests', '--gtest-also-run-disabled-tests',
       dest='run_disabled', action='store_true',
       help='Also run disabled tests if applicable.')
-  parser.add_argument(
-      '--non-native-packed-relocations',
-      action='store_true',
-      help='Whether relocations were packed using the Android '
-           'relocation_packer tool.')
   def package_replacement(arg):
     split_arg = arg.split(',')
     if len(split_arg) != 2:
       raise argparse.ArgumentError(
+          arg,
           'Expected two comma-separated strings for --replace-system-package, '
           'received %d' % len(split_arg))
     PackageReplacement = collections.namedtuple('PackageReplacement',
@@ -494,10 +475,6 @@ def AddInstrumentationTestOptions(parser):
       type=float,
       help='Factor by which timeouts should be scaled.')
   parser.add_argument(
-      '--ui-screenshot-directory',
-      dest='ui_screenshot_dir', type=os.path.realpath,
-      help='Destination for screenshots captured by the tests')
-  parser.add_argument(
       '-w', '--wait-for-java-debugger', action='store_true',
       help='Wait for java debugger to attach before running any application '
            'code. Also disables test timeouts and sets retries=0.')
@@ -527,9 +504,6 @@ def AddJUnitTestOptions(parser):
   parser.add_argument(
       '--runner-filter',
       help='Filters tests by runner class. Must be fully qualified.')
-  parser.add_argument(
-      '-f', '--test-filter',
-      help='Filters tests googletest-style.')
   parser.add_argument(
       '-s', '--test-suite', required=True,
       help='JUnit test suite to run.')
@@ -563,11 +537,6 @@ def AddLinkerTestOptions(parser):
 
   parser.add_argument_group('linker arguments')
 
-  parser.add_argument(
-      '-f', '--gtest-filter',
-      dest='test_filter',
-      help='googletest-style filter string.',
-      default=os.environ.get('GTEST_FILTER'))
   parser.add_argument(
       '--test-apk',
       type=os.path.realpath,
@@ -682,9 +651,6 @@ def AddPerfTestOptions(parser):
       help='Writes a JSON list of information for each --steps into the given '
            'file. Information includes runtime and device affinity for each '
            '--steps.')
-  parser.add_argument(
-      '-f', '--test-filter',
-      help='Test filter (will match against the names listed in --steps).')
   parser.add_argument(
       '--write-buildbot-json',
       action='store_true',
@@ -940,6 +906,16 @@ def RunTestsInPlatformMode(args):
         results_detail_file.write(result_html_string)
         results_detail_file.flush()
       logging.critical('TEST RESULTS: %s', results_detail_file.Link())
+
+      ui_screenshots = test_results_presentation.ui_screenshot_set(
+          json_file.name)
+      if ui_screenshots:
+        with out_manager.ArchivedTempfile(
+            'ui_screenshots.json',
+            'ui_capture',
+            output_manager.Datatype.JSON) as ui_screenshot_file:
+          ui_screenshot_file.write(ui_screenshots)
+        logging.critical('UI Screenshots: %s', ui_screenshot_file.Link())
 
   if args.command == 'perf' and (args.steps or args.single_step):
     return 0

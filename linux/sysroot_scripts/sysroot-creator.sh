@@ -3,13 +3,13 @@
 # found in the LICENSE file.
 #
 # This script should not be run directly but sourced by the other
-# scripts (e.g. sysroot-creator-stretch.sh).  Its up to the parent scripts
+# scripts (e.g. sysroot-creator-sid.sh).  Its up to the parent scripts
 # to define certain environment variables: e.g.
 #  DISTRO=debian
-#  DIST=stretch
+#  DIST=sid
 #  # Similar in syntax to /etc/apt/sources.list
-#  APT_SOURCES_LIST="http://ftp.us.debian.org/debian/ stretch main"
-#  KEYRING_FILE=debian-archive-stretch-stable.gpg
+#  APT_SOURCES_LIST="http://ftp.us.debian.org/debian/ sid main"
+#  KEYRING_FILE=debian-archive-sid-stable.gpg
 #  DEBIAN_PACKAGES="gcc libz libssl"
 
 #@ This script builds Debian/Ubuntu sysroot images for building Google Chrome.
@@ -314,6 +314,13 @@ HacksAndPatchesCommon() {
   local libm_so="${INSTALL_ROOT}/lib/${arch}-${os}/libm.so.6"
   nm -D --defined-only --with-symbol-versions "${libm_so}" | \
     "${SCRIPT_DIR}/find_incompatible_glibc_symbols.py" >> "${math_h}"
+
+  # glob64() was also optimized in glibc 2.27.  Make sure to choose the older
+  # version.
+  local glob_h="${INSTALL_ROOT}/usr/include/glob.h"
+  local libc_so="${INSTALL_ROOT}/lib/${arch}-${os}/libc.so.6"
+  nm -D --defined-only --with-symbol-versions "${libc_so}" | \
+    "${SCRIPT_DIR}/find_incompatible_glibc_symbols.py" >> "${glob_h}"
 
   # This is for chrome's ./build/linux/pkg-config-wrapper
   # which overwrites PKG_CONFIG_LIBDIR internally
