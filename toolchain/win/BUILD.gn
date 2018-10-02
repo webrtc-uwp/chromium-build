@@ -506,6 +506,7 @@ if (target_os == "winuwp") {
       current_os = "winuwp"
       current_cpu = target_cpu
       is_clang = false
+    }
   }
   msvc_toolchain("uwp_clang_" + target_cpu) {
     environment = "environment.store_" + target_cpu
