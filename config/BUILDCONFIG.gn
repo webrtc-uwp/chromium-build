@@ -258,7 +258,7 @@ if (target_os == "android") {
   assert(target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
          target_cpu == "arm64")
   if (is_clang) {
-    _default_toolchain = "//build/toolchain/win:win_clang_$target_cpu"
+    _default_toolchain = "//build/toolchain/win:uwp_clang_$target_cpu"
   } else {
     _default_toolchain = "//build/toolchain/win:uwp_$target_cpu"
   }
