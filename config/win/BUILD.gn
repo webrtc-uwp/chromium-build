@@ -286,6 +286,10 @@ config("runtime_library") {
       "/std:c++17",
       "/Zc:__cplusplus",
     ]
+    
+    if (!is_clang) {
+        cflags_cc += [ "/ZW", ]
+    }
 
     # This warning is given because the linker cannot tell the difference
     # between consuming WinRT APIs versus authoring WinRT within static
