@@ -172,7 +172,9 @@ template("msvc_toolchain") {
         "$object_subdir/{{source_name_part}}.obj",
       ]
       if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
-        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=armv7-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+      } else if (target_name == "uwp_clang_arm64" || target_name == "win_clang_arm64") {
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=aarch64-windows-msvc  /DWindowsSDKDesktopARM64Support=1" 
       } else {
           rspfile = "{{output}}.rsp"
           command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
@@ -196,7 +198,9 @@ template("msvc_toolchain") {
       ]
       
       if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
-        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=armv7-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE" 
+      } else if (target_name == "uwp_clang_arm64" || target_name == "win_clang_arm64") {
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=aarch64-windows-msvc /DWindowsSDKDesktopARM64Support=1" 
       } else {
         rspfile = "{{output}}.rsp"
         command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
