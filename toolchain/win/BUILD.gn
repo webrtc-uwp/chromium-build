@@ -82,6 +82,12 @@ template("msvc_toolchain") {
     # toolchain args, use those values, otherwise default to the global one.
     # This works because the only reasonable override that toolchains might
     # supply for these values are to force-disable them.
+    if (defined(toolchain_args.use_lld)) {
+      toolchain_uses_lld = toolchain_args.use_lld
+    } else {
+      toolchain_uses_lld = use_lld
+    }
+    
     if (defined(toolchain_args.is_clang)) {
       toolchain_uses_clang = toolchain_args.is_clang
     } else {
@@ -98,7 +104,7 @@ template("msvc_toolchain") {
       cl = "${analyzer_prefix} ${cl}"
     }
 
-    if (use_lld) {
+    if (toolchain_uses_lld) {
       if (host_os == "win") {
         lld_link = "lld-link.exe"
       } else {
@@ -138,7 +144,7 @@ template("msvc_toolchain") {
     if (defined(invoker.sys_lib_flags)) {
       linker_wrapper = ""
       sys_lib_flags = "${invoker.sys_lib_flags} "  # Note trailing space
-    } else if (use_lld) {
+    } else if (toolchain_uses_lld) {
       # Invoke ninja as wrapper instead of tool wrapper, because python
       # invocation requires higher cpu usage compared to ninja invocation, and
       # the python wrapper is only needed to work around link.exe problems.
@@ -391,6 +397,7 @@ if (target_cpu != "x64") {
       current_os = "win"
       current_cpu = target_cpu
       is_clang = false
+      use_lld = false
     }
   }
 
@@ -408,6 +415,7 @@ if (target_cpu != "x64") {
       current_os = "win"
       current_cpu = target_cpu
       is_clang = true
+      use_lld = true
     }
   }
 }
@@ -440,6 +448,7 @@ template("win_x64_toolchains") {
       is_clang = false
       current_os = "win"
       current_cpu = "x64"
+      use_lld = false
     }
   }
 
@@ -460,6 +469,7 @@ template("win_x64_toolchains") {
       is_clang = true
       current_os = "win"
       current_cpu = "x64"
+      use_lld = true
     }
   }
 }
@@ -504,6 +514,7 @@ if (target_os == "winuwp") {
       current_os = "winuwp"
       current_cpu = target_cpu
       is_clang = false
+      use_lld = false
     }
   }
   msvc_toolchain("uwp_clang_" + target_cpu) {
@@ -516,6 +527,7 @@ if (target_os == "winuwp") {
       current_os = "winuwp"
       current_cpu = target_cpu
       is_clang = true
+      use_lld = true
     }
   }
 }
