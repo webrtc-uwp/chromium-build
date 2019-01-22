@@ -446,7 +446,7 @@ config("default_crt") {
       configs = [ ":dynamic_crt" ]
     } else {
       # Desktop Windows: static CRT.
-      configs = [ ":dynamic_crt" ]
+      configs = [ ":static_crt" ]
     }
   }
 }
