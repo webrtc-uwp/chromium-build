@@ -189,7 +189,7 @@ template("msvc_toolchain") {
       rspfile = "{{output}}.rsp"
       
       if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
-        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE"
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE -Wno-unknown-argument"
         rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
       } else if (target_name == "uwp_clang_arm64" || target_name == "win_clang_arm64") {
         command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=aarch64-windows-msvc  /DWindowsSDKDesktopARM64Support=1"
@@ -216,7 +216,7 @@ template("msvc_toolchain") {
       rspfile = "{{output}}.rsp"
       
       if (target_name == "uwp_clang_arm" || target_name == "win_clang_arm") {
-        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE"
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=arm-windows-msvc /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE -Wno-unknown-argument"
         rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
       } else if (target_name == "uwp_clang_arm64" || target_name == "win_clang_arm64") {
         command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} /Fd\"$pdbname\" --target=aarch64-windows-msvc  /DWindowsSDKDesktopARM64Support=1"
@@ -237,22 +237,30 @@ template("msvc_toolchain") {
     }
 
     tool("asm") {
-      if (toolchain_args.current_cpu == "x64") {
-        ml = "ml64.exe"
-      } else if (toolchain_args.current_cpu == "x86") {
-        ml = "ml.exe"
-      } else if (toolchain_args.current_cpu == "arm"){
-        ml = "armasm.exe"
-      } else if (toolchain_args.current_cpu == "arm64"){
-        ml = "armasm64.exe"
-      } else {
-        assert(false, "Unsupported CPU tartget")
+      if (!is_clang) {
+        if (toolchain_args.current_cpu == "x64") {
+          ml = "ml64.exe"
+        } else if (toolchain_args.current_cpu == "x86") {
+          ml = "ml.exe"
+        } else if (toolchain_args.current_cpu == "arm"){
+          ml = "armasm.exe"
+        } else if (toolchain_args.current_cpu == "arm64"){
+          ml = "armasm64.exe"
+        } else {
+          assert(false, "Unsupported CPU tartget")
+        }
       }
       
-      if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
-        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+      if (is_clang) {
+        rspfile = "{{output}}.rsp"
+        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} --target=arm-arm-windows -march=armv7-a -Wno-unused-command-line-argument -Wno-unknown-argument"  
+        rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
       } else {
-        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+        if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
+          command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
+        } else {
+          command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+        }
       }
       description = "ASM {{output}}"
       outputs = [
