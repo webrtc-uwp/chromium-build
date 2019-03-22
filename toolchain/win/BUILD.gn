@@ -237,7 +237,7 @@ template("msvc_toolchain") {
     }
 
     tool("asm") {
-      if (!is_clang) {
+      if (!toolchain_uses_clang) {
         if (toolchain_args.current_cpu == "x64") {
           ml = "ml64.exe"
         } else if (toolchain_args.current_cpu == "x86") {
@@ -249,19 +249,19 @@ template("msvc_toolchain") {
         } else {
           assert(false, "Unsupported CPU tartget")
         }
+      } else {
+        ml = "$env_wrapper$cl"
       }
       
-      if (is_clang) {
-        rspfile = "{{output}}.rsp"
-        command = "$env_wrapper$cl /nologo /showIncludes ${clflags} @$rspfile /c {{source}} /Fo{{output}} --target=arm-arm-windows -march=armv7-a -Wno-unused-command-line-argument -Wno-unknown-argument"  
-        rspfile_content = "$sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+      if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
       } else {
-        if (toolchain_args.current_cpu == "x64" || toolchain_args.current_cpu == "x86") {
-          command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} /c /Fo{{output}} {{source}}"
-        } else {
-          command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+        command = "$python_path $tool_wrapper_path asm-wrapper $env $ml -oldit -16 {{include_dirs}} {{source}} -o {{output}}"
+        if (is_clang && toolchain_args.current_cpu == "arm") {
+          command += " --target=arm-pc-windows"
         }
       }
+
       description = "ASM {{output}}"
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
