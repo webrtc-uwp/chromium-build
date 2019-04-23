@@ -190,8 +190,12 @@ def _CopyUCRTRuntime(target_dir, source_dir, target_cpu, dll_pattern, suffix):
       os.environ.get('WINDOWSSDKDIR',
                      os.path.expandvars('%ProgramFiles(x86)%'
                                         '\\Windows Kits\\10')))
-  ucrt_dll_dirs = os.path.join(win_sdk_dir, 'Redist', 'ucrt', 'DLLs',
-                               target_cpu)
+  if target_cpu == 'arm64':
+    ucrt_dll_dirs = os.path.join(win_sdk_dir, 'Redist', 'ucrt', 'DLLs',
+                                 'arm')
+  else:
+    ucrt_dll_dirs = os.path.join(win_sdk_dir, 'Redist', 'ucrt', 'DLLs',
+                                 target_cpu)
   ucrt_files = glob.glob(os.path.join(ucrt_dll_dirs, 'api-ms-win-*.dll'))
   assert len(ucrt_files) > 0
   for ucrt_src_file in ucrt_files:
@@ -234,10 +238,13 @@ def _CopyPGORuntime(target_dir, target_cpu):
   if env_version == '2017':
     pgo_runtime_root = FindVCToolsRoot()
     assert pgo_runtime_root
+    print 'pgo_runtime_root %s ' % (pgo_runtime_root)
     # There's no version of pgosweep.exe in HostX64/x86, so we use the copy
     # from HostX86/x86.
     pgo_x86_runtime_dir = os.path.join(pgo_runtime_root, 'HostX86', 'x86')
     pgo_x64_runtime_dir = os.path.join(pgo_runtime_root, 'HostX64', 'x64')
+    pgo_arm_runtime_dir = os.path.join(pgo_runtime_root, 'arm')
+    pgo_arm64_runtime_dir = os.path.join(pgo_runtime_root, 'arm64')
   else:
     raise Exception('Unexpected toolchain version: %s.' % env_version)
 
@@ -250,6 +257,10 @@ def _CopyPGORuntime(target_dir, target_cpu):
       source = os.path.join(pgo_x86_runtime_dir, runtime)
     elif target_cpu == 'x64':
       source = os.path.join(pgo_x64_runtime_dir, runtime)
+    elif target_cpu == 'arm':
+      source = os.path.join(pgo_arm_runtime_dir, runtime)	 
+    elif target_cpu == 'arm64':
+      source = os.path.join(pgo_arm64_runtime_dir, runtime)	       
     else:
       raise NotImplementedError("Unexpected target_cpu value: " + target_cpu)
     if not os.path.exists(source):
@@ -285,7 +296,8 @@ def CopyDlls(target_dir, configuration, target_cpu):
   if configuration == 'Debug':
     _CopyRuntime(target_dir, runtime_dir, target_cpu, debug=True)
   else:
-    _CopyPGORuntime(target_dir, target_cpu)
+    if not (target_cpu in ('arm', 'arm64')):
+      _CopyPGORuntime(target_dir, target_cpu)
 
   _CopyDebugger(target_dir, target_cpu)
 

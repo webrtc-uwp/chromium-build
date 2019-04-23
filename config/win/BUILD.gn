@@ -87,7 +87,7 @@ config("compiler") {
   if (is_clang) {
     cflags += [ "-fmsc-version=1911" ]
 
-    if (current_cpu == "x86") {
+    if (current_cpu == "x86" || current_cpu == "arm") {
       cflags += [ "-m32" ]
     } else {
       cflags += [ "-m64" ]
@@ -243,7 +243,7 @@ config("runtime_library") {
     "_SECURE_ATL",
   ]
 
-  if (!use_vs_code_analysis) {
+  if ((!use_vs_code_analysis) && (current_os != "winuwp")) {
     # This is required for ATL to use XP-safe versions of its functions.
     # However it is prohibited when using /analyze
     defines += [ "_USING_V110_SDK71_" ]
@@ -282,9 +282,20 @@ config("runtime_library") {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
     }
     cflags_cc += [
-      "/ZW",
-      "/EHsc",
+      "/std:c++17",
+      "/Zc:__cplusplus",
     ]
+    
+    #TEMPORARY!!! Clang-cl.exe missing unwind support for Windows arm and arm64. This will generate errors in places where try/catch are used
+    if (is_clang && (current_cpu == "arm" || current_cpu == "arm64")) {
+      cflags_cc += [
+        "/EHs-c-",
+      ]
+    } else {
+      cflags_cc += [
+        "/EHsc"
+      ]
+    }
 
     # This warning is given because the linker cannot tell the difference
     # between consuming WinRT APIs versus authoring WinRT within static
@@ -306,6 +317,13 @@ config("runtime_library") {
     # to desktop.
     defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
   }
+}
+
+config("cpp17") {
+  cflags_cc = [
+    "/std:c++17",
+    "/Zc:__cplusplus",
+  ]
 }
 
 # Sets the default Windows build version. This is separated because some
@@ -375,6 +393,20 @@ config("common_linker_setup") {
     "/NXCOMPAT",
     "/DYNAMICBASE",
   ]
+
+  # ASLR makes debugging with windbg difficult because Chrome.exe and
+  # Chrome.dll share the same base name. As result, windbg will name the
+  # Chrome.dll module like chrome_<base address>, where <base address>
+  # typically changes with each launch. This in turn means that breakpoints in
+  # Chrome.dll don't stick from one launch to the next. For this reason, we
+  # turn ASLR off in debug builds.
+  if (is_debug) {
+    if (current_cpu != "arm" && current_cpu != "arm64") {
+      ldflags += [ "/DYNAMICBASE:NO" ]
+    }
+  } else {
+    ldflags += [ "/DYNAMICBASE" ]
+  }
 
   if (win_linker_timing) {
     ldflags += [

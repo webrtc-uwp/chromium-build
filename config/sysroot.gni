@@ -54,11 +54,10 @@ if (current_os == target_os && current_cpu == target_cpu &&
     } else if (_script_arch == "x64") {
       _script_arch = "amd64"
     }
-    assert(
-        exec_script("//build/dir_exists.py",
-                    [ rebase_path(sysroot) ],
-                    "string") == "True",
-        "Missing sysroot ($sysroot). To fix, run: build/linux/sysroot_scripts/install-sysroot.py --arch=$_script_arch")
+    if (exec_script("//build/dir_exists.py", [ rebase_path(sysroot) ], "string") != "True") {
+      arch_arg = "--arch=$_script_arch"
+      exec_script("//build/linux/sysroot_scripts/install-sysroot-alt.py", [ arch_arg ])
+    }
   }
 } else if (is_mac) {
   import("//build/config/mac/mac_sdk.gni")
