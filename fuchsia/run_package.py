@@ -6,22 +6,21 @@
 executable on a Target."""
 
 import common
-import json
+import hashlib
 import logging
 import multiprocessing
 import os
+import re
 import select
-import shutil
 import subprocess
 import sys
-import tempfile
+import time
 import threading
 import uuid
 
-from symbolizer import FilterStream
+from symbolizer import SymbolizerFilter
 
 FAR = os.path.join(common.SDK_ROOT, 'tools', 'far')
-PM = os.path.join(common.SDK_ROOT, 'tools', 'pm')
 
 # Amount of time to wait for the termination of the system log output thread.
 _JOIN_TIMEOUT_SECS = 5
@@ -35,30 +34,106 @@ def _AttachKernelLogReader(target):
                                 stdout=subprocess.PIPE)
 
 
-def _ReadMergedLines(streams):
-  """Creates a generator which merges the buffered line output from |streams|.
-  The generator is terminated when the primary (first in sequence) stream
-  signals EOF. Absolute output ordering is not guaranteed."""
+class MergedInputStream(object):
+  """Merges a number of input streams into a UNIX pipe on a dedicated thread.
+  Terminates when the file descriptor of the primary stream (the first in
+  the sequence) is closed."""
 
-  assert len(streams) > 0
-  streams_by_fd = {}
-  primary_fd = streams[0].fileno()
-  for s in streams:
-    streams_by_fd[s.fileno()] = s
+  def __init__(self, streams):
+    assert len(streams) > 0
+    self._streams = streams
+    self._read_pipe, write_pipe = os.pipe()
+    # Disable buffering for the stream to make sure there is no delay in logs.
+    self._output_stream = os.fdopen(write_pipe, 'w', 0)
+    self._thread = threading.Thread(target=self._Run)
 
-  while primary_fd != None:
-    rlist, _, _ = select.select(streams_by_fd, [], [], 0.1)
-    for fileno in rlist:
-      line = streams_by_fd[fileno].readline()
-      if line:
-        yield line
-      elif fileno == primary_fd:
-        primary_fd = None
-      else:
+  def Start(self):
+    """Returns a file descriptor to the merged output stream."""
+
+    self._thread.start();
+    return self._read_pipe
+
+  def _Run(self):
+    streams_by_fd = {}
+    primary_fd = self._streams[0].fileno()
+    for s in self._streams:
+      streams_by_fd[s.fileno()] = s
+
+    # Set when the primary FD is closed. Input from other FDs will continue to
+    # be processed until select() runs dry.
+    flush = False
+
+    # The lifetime of the MergedInputStream is bound to the lifetime of
+    # |primary_fd|.
+    while primary_fd:
+      # When not flushing: block until data is read or an exception occurs.
+      rlist, _, xlist = select.select(streams_by_fd, [], streams_by_fd)
+
+      if len(rlist) == 0 and flush:
+        break
+
+      for fileno in xlist:
         del streams_by_fd[fileno]
+        if fileno == primary_fd:
+          primary_fd = None
+
+      for fileno in rlist:
+        line = streams_by_fd[fileno].readline()
+        if line:
+          self._output_stream.write(line + '\n')
+        else:
+          del streams_by_fd[fileno]
+          if fileno == primary_fd:
+            primary_fd = None
+
+    # Flush the streams by executing nonblocking reads from the input file
+    # descriptors until no more data is available,  or all the streams are
+    # closed.
+    while streams_by_fd:
+      rlist, _, _ = select.select(streams_by_fd, [], [], 0)
+
+      if not rlist:
+        break
+
+      for fileno in rlist:
+        line = streams_by_fd[fileno].readline()
+        if line:
+          self._output_stream.write(line + '\n')
+        else:
+          del streams_by_fd[fileno]
 
 
-def DrainStreamToStdout(stream, quit_event):
+def _GetComponentUri(package_name):
+  return 'fuchsia-pkg://fuchsia.com/%s#meta/%s.cmx' % (package_name,
+                                                       package_name)
+
+
+class RunPackageArgs:
+  """RunPackage() configuration arguments structure.
+
+  install_only: If set, skips the package execution step.
+  symbolizer_config: A newline delimited list of source files contained
+      in the package. Omitting this parameter will disable symbolization.
+  system_logging: If set, connects a system log reader to the target.
+  target_staging_path: Path to which package FARs will be staged, during
+      installation. Defaults to staging into '/data'.
+  """
+  def __init__(self):
+    self.install_only = False
+    self.symbolizer_config = None
+    self.system_logging = False
+    self.target_staging_path = '/data'
+
+  @staticmethod
+  def FromCommonArgs(args):
+    run_package_args = RunPackageArgs()
+    run_package_args.install_only = args.install_only
+    run_package_args.system_logging = args.include_system_logs
+    run_package_args.target_staging_path = args.target_staging_path
+    return run_package_args
+
+
+def _DrainStreamToStdout(stream, quit_event):
   """Outputs the contents of |stream| until |quit_event| is set."""
 
   while not quit_event.is_set():
@@ -70,86 +145,64 @@ def DrainStreamToStdout(stream, quit_event):
       print line.rstrip()
 
 
-def RunPackage(output_dir, target, package_path, package_name, package_deps,
-               run_args, system_logging, install_only, symbolizer_config=None):
-  """Copies the Fuchsia package at |package_path| to the target,
-  executes it with |run_args|, and symbolizes its output.
+def RunPackage(output_dir, target, package_path, package_name,
+               package_deps, package_args, args):
+  """Installs the Fuchsia package at |package_path| on the target,
+  executes it with |package_args|, and symbolizes its output.
 
   output_dir: The path containing the build output files.
   target: The deployment Target object that will run the package.
   package_path: The path to the .far package file.
   package_name: The name of app specified by package metadata.
-  run_args: The arguments which will be passed to the Fuchsia process.
-  system_logging: If set, connects a system log reader to the target.
-  install_only: If set, skips the package execution step.
-  symbolizer_config: A newline delimited list of source files contained
-                     in the package. Omitting this parameter will disable
-                     symbolization.
+  package_args: The arguments which will be passed to the Fuchsia process.
+  args: Structure of arguments to configure how the package will be run.
 
   Returns the exit code of the remote package process."""
 
-
-  system_logger = _AttachKernelLogReader(target) if system_logging else None
+  system_logger = (
+      _AttachKernelLogReader(target) if args.system_logging else None)
   try:
     if system_logger:
       # Spin up a thread to asynchronously dump the system log to stdout
       # for easier diagnoses of early, pre-execution failures.
       log_output_quit_event = multiprocessing.Event()
       log_output_thread = threading.Thread(
-          target=lambda: DrainStreamToStdout(system_logger.stdout,
-                                             log_output_quit_event))
+          target=lambda: _DrainStreamToStdout(system_logger.stdout,
+                                              log_output_quit_event))
       log_output_thread.daemon = True
       log_output_thread.start()
 
-    for next_package_path in ([package_path] + package_deps):
-      logging.info('Installing ' + os.path.basename(next_package_path) + '.')
-
-      # Copy the package archive.
-      install_path = os.path.join('/data', os.path.basename(next_package_path))
-      target.PutFile(next_package_path, install_path)
-
-      # Install the package.
-      p = target.RunCommandPiped(['pm', 'install', install_path],
-                                 stderr=subprocess.PIPE)
-      output = p.stderr.readlines()
-      p.wait()
-      if p.returncode != 0:
-        # Don't error out if the package already exists on the device.
-        if len(output) != 1 or 'ErrAlreadyExists' not in output[0]:
-          raise Exception('Error while installing: %s' % '\n'.join(output))
-
-      # Clean up the package archive.
-      target.RunCommand(['rm', install_path])
+    target.InstallPackage(package_path, package_name, package_deps)
 
     if system_logger:
       log_output_quit_event.set()
       log_output_thread.join(timeout=_JOIN_TIMEOUT_SECS)
 
-    if install_only:
+    if args.install_only:
       logging.info('Installation complete.')
       return
 
     logging.info('Running application.')
-    command = ['run', package_name] + run_args
+    command = ['run', _GetComponentUri(package_name)] + package_args
     process = target.RunCommandPiped(command,
                                      stdin=open(os.devnull, 'r'),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
 
     if system_logger:
-      task_output = _ReadMergedLines([process.stdout, system_logger.stdout])
+      output_fd = MergedInputStream([process.stdout,
+                                       system_logger.stdout]).Start()
     else:
-      task_output = process.stdout
+      output_fd = process.stdout.fileno()
 
-    if symbolizer_config:
-      # Decorate the process output stream with the symbolizer.
-      output = FilterStream(task_output, package_name, symbolizer_config,
-                            output_dir)
-    else:
-      logging.warn('Symbolization is DISABLED.')
-      output = process.stdout
+    # Run the log data through the symbolizer process.
+    build_ids_paths = map(
+        lambda package_path: os.path.join(
+            os.path.dirname(package_path), 'ids.txt'),
+        [package_path] + package_deps)
+    output_stream = SymbolizerFilter(output_fd, build_ids_paths)
 
-    for next_line in output:
+    for next_line in output_stream:
       print next_line.rstrip()
 
     process.wait()
@@ -167,6 +220,5 @@ def RunPackage(output_dir, target, package_path, package_name, package_deps,
       log_output_quit_event.set()
       log_output_thread.join()
       system_logger.kill()
-
 
   return process.returncode

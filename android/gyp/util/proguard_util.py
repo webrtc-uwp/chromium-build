@@ -51,12 +51,18 @@ class ProguardCmdBuilder(object):
     self._configs = None
     self._config_exclusions = None
     self._outjar = None
+    self._mapping_output = None
     self._verbose = False
+    self._min_api = None
     self._disabled_optimizations = []
 
   def outjar(self, path):
     assert self._outjar is None
     self._outjar = path
+
+  def mapping_output(self, path):
+    assert self._mapping_output is None
+    self._mapping_output = path
 
   def mapping(self, path):
     assert self._mapping is None
@@ -88,6 +94,10 @@ class ProguardCmdBuilder(object):
   def verbose(self, verbose):
     self._verbose = verbose
 
+  def min_api(self, min_api):
+    assert self._min_api is None
+    self._min_api = min_api
+
   def disable_optimizations(self, optimizations):
     self._disabled_optimizations += optimizations
 
@@ -105,6 +115,13 @@ class ProguardCmdBuilder(object):
 
     if self._libraries:
       cmd += ['-libraryjars', ':'.join(self._libraries)]
+
+    if self._min_api:
+      cmd += [
+          '-assumevalues class android.os.Build$VERSION {' +
+          ' public static final int SDK_INT return ' + self._min_api +
+          '..9999; }'
+      ]
 
     for optimization in self._disabled_optimizations:
       cmd += [ '-optimizations', '!' + optimization ]
@@ -124,7 +141,7 @@ class ProguardCmdBuilder(object):
       '-outjars', self._outjar,
       '-printseeds', self._outjar + '.seeds',
       '-printusage', self._outjar + '.usage',
-      '-printmapping', self._outjar + '.mapping',
+      '-printmapping', self._mapping_output,
     ]
 
     if self._verbose:
@@ -156,24 +173,14 @@ class ProguardCmdBuilder(object):
     return [
         self._outjar,
         self._outjar + '.flags',
-        self._outjar + '.mapping',
+        self._mapping_output,
         self._outjar + '.seeds',
         self._outjar + '.usage',
     ]
 
   def _WriteFlagsFile(self, cmd, out):
     # Quite useful for auditing proguard flags.
-    for config in sorted(self._configs):
-      out.write('#' * 80 + '\n')
-      out.write('# ' + config + '\n')
-      out.write('#' * 80 + '\n')
-      with open(config) as config_file:
-        contents = config_file.read().rstrip()
-      # Remove numbers from generated rule comments to make file more
-      # diff'able.
-      contents = re.sub(r' #generated:\d+', '', contents)
-      out.write(contents)
-      out.write('\n\n')
+    WriteFlagsFile(self._configs, out)
     out.write('#' * 80 + '\n')
     out.write('# Command-line\n')
     out.write('#' * 80 + '\n')
@@ -210,3 +217,20 @@ class ProguardCmdBuilder(object):
     open(self._outjar + '.seeds', 'a').close()
     open(self._outjar + '.usage', 'a').close()
     open(self._outjar + '.mapping', 'a').close()
+
+
+def WriteFlagsFile(configs, out, exclude_generated=False):
+  for config in sorted(configs):
+    if exclude_generated and config.endswith('.resources.proguard.txt'):
+      continue
+
+    out.write('#' * 80 + '\n')
+    out.write('# ' + config + '\n')
+    out.write('#' * 80 + '\n')
+    with open(config) as config_file:
+      contents = config_file.read().rstrip()
+    # Remove numbers from generated rule comments to make file more
+    # diff'able.
+    contents = re.sub(r' #generated:\d+', '', contents)
+    out.write(contents)
+    out.write('\n\n')

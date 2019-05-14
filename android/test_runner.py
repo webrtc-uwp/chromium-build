@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env vpython
 #
 # Copyright 2013 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -74,6 +74,7 @@ def AddTestLauncherOptions(parser):
       '--test-launcher-retry-limit',
       '--test_launcher_retry_limit',
       '--num_retries', '--num-retries',
+      '--isolated-script-test-launcher-retry-limit',
       dest='num_retries', type=int, default=2,
       help='Number of retries for a test before '
            'giving up (default: %(default)s).')
@@ -105,6 +106,11 @@ def AddCommandLineOptions(parser):
       type=os.path.realpath,
       help='The relative filepath to a file containing '
            'command-line flags to set on the device')
+  parser.add_argument(
+      '--use-apk-under-test-flags-file',
+      action='store_true',
+      help='Wether to use the flags file for the apk under test. If set, '
+           "the filename will be looked up in the APK's PackageInfo.")
   parser.set_defaults(allow_unknown=True)
   parser.set_defaults(command_line_flags=None)
 
@@ -193,7 +199,6 @@ def AddCommonOptions(parser):
       '--gs-results-bucket',
       help='Google Storage bucket to upload results to.')
 
-
   parser.add_argument(
       '--output-directory',
       dest='output_directory', type=os.path.realpath,
@@ -201,13 +206,21 @@ def AddCommonOptions(parser):
            ' located (must include build type). This will take'
            ' precedence over --debug and --release')
   parser.add_argument(
-      '--repeat', '--gtest_repeat', '--gtest-repeat',
-      dest='repeat', type=int, default=0,
-      help='Number of times to repeat the specified set of tests.')
-  parser.add_argument(
       '-v', '--verbose',
       dest='verbose_count', default=0, action='count',
       help='Verbose level (multiple times for more)')
+
+  parser.add_argument(
+      '--repeat', '--gtest_repeat', '--gtest-repeat',
+      '--isolated-script-test-repeat',
+      dest='repeat', type=int, default=0,
+      help='Number of times to repeat the specified set of tests.')
+  # This is currently only implemented for gtests and instrumentation tests.
+  parser.add_argument(
+      '--gtest_also_run_disabled_tests', '--gtest-also-run-disabled-tests',
+      '--isolated-script-test-also-run-disabled-tests',
+      dest='run_disabled', action='store_true',
+      help='Also run disabled tests if applicable.')
 
   AddTestLauncherOptions(parser)
 
@@ -332,10 +345,6 @@ def AddGTestOptions(parser):
       help=('If present, test artifacts will be uploaded to this Google '
             'Storage bucket.'))
   parser.add_argument(
-      '--gtest_also_run_disabled_tests', '--gtest-also-run-disabled-tests',
-      dest='run_disabled', action='store_true',
-      help='Also run disabled tests if applicable.')
-  parser.add_argument(
       '--runtime-deps-path',
       dest='runtime_deps_path', type=os.path.realpath,
       help='Runtime data dependency file from GN.')
@@ -406,10 +415,6 @@ def AddInstrumentationTestOptions(parser):
       dest='exclude_annotation_str',
       help='Comma-separated list of annotations. Exclude tests with these '
            'annotations.')
-  parser.add_argument(
-      '--gtest_also_run_disabled_tests', '--gtest-also-run-disabled-tests',
-      dest='run_disabled', action='store_true',
-      help='Also run disabled tests if applicable.')
   def package_replacement(arg):
     split_arg = arg.split(',')
     if len(split_arg) != 2:
@@ -429,6 +434,14 @@ def AddInstrumentationTestOptions(parser):
            'the first element being the package and the second the path to the '
            'replacement APK. Only supports replacing one package. Example: '
            '--replace-system-package com.example.app,path/to/some.apk')
+
+  parser.add_argument(
+      '--use-webview-provider',
+      type=_RealPath, default=None,
+      help='Use this apk as the webview provider during test. '
+           'The original provider will be restored if possible, '
+           "on Nougat the provider can't be determined and so "
+           'the system will choose the default provider.')
   parser.add_argument(
       '--runtime-deps-path',
       dest='runtime_deps_path', type=os.path.realpath,
@@ -495,6 +508,9 @@ def AddJUnitTestOptions(parser):
 
   parser = parser.add_argument_group('junit arguments')
 
+  parser.add_argument(
+      '--jacoco', action='store_true',
+      help='Generate jacoco report.')
   parser.add_argument(
       '--coverage-dir', type=os.path.realpath,
       help='Directory to store coverage info.')
@@ -742,6 +758,7 @@ def RunTestsInPlatformMode(args):
 
   ### Set up sigterm handler.
 
+  contexts_to_notify_on_sigterm = []
   def unexpected_sigterm(_signum, _frame):
     msg = [
       'Received SIGTERM. Shutting down.',
@@ -754,6 +771,9 @@ def RunTestsInPlatformMode(args):
         'Thread "%s" (ident: %s) is currently running:' % (
             live_thread.name, live_thread.ident),
         thread_stack])
+
+    for context in contexts_to_notify_on_sigterm:
+      context.ReceivedSigterm()
 
     infra_error('\n'.join(msg))
 
@@ -834,6 +854,9 @@ def RunTestsInPlatformMode(args):
   test_run = test_run_factory.CreateTestRun(
       args, env, test_instance, infra_error)
 
+  contexts_to_notify_on_sigterm.append(env)
+  contexts_to_notify_on_sigterm.append(test_run)
+
   ### Run.
   with out_manager, json_finalizer():
     with json_writer(), logcats_uploader, env, test_instance, test_run:
@@ -844,11 +867,17 @@ def RunTestsInPlatformMode(args):
           lambda: collections.defaultdict(int))
       iteration_count = 0
       for _ in repetitions:
-        raw_results = test_run.RunTests()
-        if not raw_results:
-          continue
-
+        # raw_results will be populated with base_test_result.TestRunResults by
+        # test_run.RunTests(). It is immediately added to all_raw_results so
+        # that in the event of an exception, all_raw_results will already have
+        # the up-to-date results and those can be written to disk.
+        raw_results = []
         all_raw_results.append(raw_results)
+
+        test_run.RunTests(raw_results)
+        if not raw_results:
+          all_raw_results.pop()
+          continue
 
         iteration_results = base_test_result.TestRunResults()
         for r in reversed(raw_results):
@@ -1002,6 +1031,18 @@ def main():
       args.enable_concurrent_adb):
     parser.error('--replace-system-package and --enable-concurrent-adb cannot '
                  'be used together')
+
+  # --use-webview-provider has the potential to cause issues if
+  # --enable-concurrent-adb is set, so disallow that combination
+  if (hasattr(args, 'use_webview_provider') and
+      hasattr(args, 'enable_concurrent_adb') and args.use_webview_provider and
+      args.enable_concurrent_adb):
+    parser.error('--use-webview-provider and --enable-concurrent-adb cannot '
+                 'be used together')
+
+  if (getattr(args, 'jacoco', False) and
+      not getattr(args, 'coverage_dir', '')):
+    parser.error('--jacoco requires --coverage-dir')
 
   if (hasattr(args, 'debug_socket') or
       (hasattr(args, 'wait_for_java_debugger') and
