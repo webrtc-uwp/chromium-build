@@ -32,7 +32,7 @@ def SetEnvironmentAndGetRuntimeDllDirs():
   returns the location of the VC runtime DLLs so they can be copied into
   the output directory after gyp generation.
 
-  Return value is [x64path, x86path, 'Arm64Unused'] or None. arm64path is
+  Return value is [x64path, x86path, 'Arm64Unused','ArmUnused'] or None. arm64path is
   generated separately because there are multiple folders for the arm64 VC
   runtime.
   """
@@ -96,7 +96,9 @@ def SetEnvironmentAndGetRuntimeDllDirs():
     vs_runtime_dll_dirs = [x64_path,
                            os.path.join(os.path.expandvars('%windir%'),
                                         'SysWOW64'),
-                           'Arm64Unused']
+                           'Arm64Unused',
+                           os.path.join(os.path.expandvars('%windir%'),
+                                        'SysWOW64')]
 
   return vs_runtime_dll_dirs
 
@@ -314,15 +316,17 @@ def CopyDlls(target_dir, configuration, target_cpu):
   if not vs_runtime_dll_dirs:
     return
 
-  x64_runtime, x86_runtime, arm64_runtime = vs_runtime_dll_dirs
+  x64_runtime, x86_runtime, arm64_runtime, arm_runtime = vs_runtime_dll_dirs
   if target_cpu == 'x64':
     runtime_dir = x64_runtime
   elif target_cpu == 'x86':
     runtime_dir = x86_runtime
+  elif target_cpu == 'arm':
+    runtime_dir = arm_runtime
   elif target_cpu == 'arm64':
     runtime_dir = arm64_runtime
   else:
-    raise Exception('Unknown target_cpu: ' + target_cpu)
+    raise Exception('Unknown target_cpu: ' + str(vs_runtime_dll_dirs))
   _CopyRuntime(target_dir, runtime_dir, target_cpu, debug=False)
   if configuration == 'Debug':
     _CopyRuntime(target_dir, runtime_dir, target_cpu, debug=True)
