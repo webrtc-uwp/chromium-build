@@ -249,9 +249,8 @@ template("msvc_toolchain") {
           } else {
             ml += " --target=arm-pc-windows"
           }
-          #TODO: Check if -oldit -16 is required
-          ml += " -oldit -16"
-          ml += " -c -o{{output}}"
+          #ml += " -oldit -16"
+          ml += " -c"
         } else {
           ml = "$env_wrapper$cl"
         }
@@ -269,10 +268,15 @@ template("msvc_toolchain") {
           ml_py = rebase_path("ml.py", root_build_dir)
           ml = "$python_path $ml_py $ml"
         }
-        ml += " /nologo /c /Fo{{output}}"
+        ml += " /nologo /c /Fo{{output}} {{defines}}"
+      } else {
+        if (!toolchain_args.is_clang) {
+          ml += " -oldit -16"
+        }
+        ml += " -o{{output}}"
       }
       
-      command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{defines}} {{include_dirs}} {{asmflags}} {{source}}"
+      command = "$python_path $tool_wrapper_path asm-wrapper $env $ml {{include_dirs}} {{asmflags}} {{source}}"
       description = "ASM {{output}}"
       outputs = [
         "$object_subdir/{{source_name_part}}.obj",
