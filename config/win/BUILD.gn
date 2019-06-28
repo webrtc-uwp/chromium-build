@@ -40,6 +40,14 @@ declare_args() {
   #    foo/bar.cc:12:34: error: something went wrong
   use_clang_diagnostics_format = false
 
+  # Enable C++17 even on Win32.
+  # For UWP, C++17 is always enabled because it is needed for C++/WinRT to
+  # compile the wrappers.
+  # This is needed to work around the fact that Abseil defines an incompatible
+  # absl::optional in pre-c++17 mode while std::optional is used in c++17 mode.
+  # So programs linking against webrtc.lib need to compile with the correct mode.
+  std_cpp17 = false
+
   # Use absolute file paths in the compiler diagnostics and (for non-clang)
   # __FILE__ macro if needed. Note that enabling this makes your build
   # dependent your checkout's path, which means you won't get to use goma's
@@ -51,6 +59,13 @@ declare_args() {
 # is applied to all targets. It is here to separate out the logic that is
 # Windows-only.
 config("compiler") {
+  configs = []
+  if (current_os == "winuwp") {
+    std_cpp17 = true
+  }
+  if (std_cpp17) {
+    configs += [ "//build/config/win:cpp17" ]
+  }
   if (current_cpu == "x86") {
     asmflags = [
       # When /safeseh is specified, the linker will only produce an image if it
@@ -258,10 +273,6 @@ config("runtime_library") {
     } else {
       defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP" ]
     }
-    cflags_cc += [
-      "/std:c++17",
-      "/Zc:__cplusplus",
-    ]
     
     #TEMPORARY!!! Clang-cl.exe missing unwind support for Windows arm and arm64. This will generate errors in places where try/catch are used
     if (is_clang && (current_cpu == "arm" || current_cpu == "arm64")) {
