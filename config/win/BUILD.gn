@@ -40,6 +40,12 @@ declare_args() {
   #    foo/bar.cc:12:34: error: something went wrong
   use_clang_diagnostics_format = false
 
+  # Use absolute file paths in the compiler diagnostics and (for non-clang)
+  # __FILE__ macro if needed. Note that enabling this makes your build
+  # dependent your checkout's path, which means you won't get to use goma's
+  # global cache, and without clang your builds won't be deterministic.
+  msvc_use_absolute_paths = false
+
   # Enable C++17 even on Win32.
   # For UWP, C++17 is always enabled because it is needed for C++/WinRT to
   # compile the wrappers.
@@ -47,12 +53,6 @@ declare_args() {
   # absl::optional in pre-c++17 mode while std::optional is used in c++17 mode.
   # So programs linking against webrtc.lib need to compile with the correct mode.
   std_cpp17 = false
-
-  # Use absolute file paths in the compiler diagnostics and (for non-clang)
-  # __FILE__ macro if needed. Note that enabling this makes your build
-  # dependent your checkout's path, which means you won't get to use goma's
-  # global cache, and without clang your builds won't be deterministic.
-  msvc_use_absolute_paths = false
 }
 
 # This is included by reference in the //build/config/compiler config that
