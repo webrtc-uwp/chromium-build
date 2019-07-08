@@ -205,13 +205,17 @@ def _CopyUCRTRuntime(target_dir, source_dir, target_cpu, dll_pattern, suffix):
   if target_cpu == 'arm64':
     # Windows ARM64 VCRuntime is located at {toolchain_root}/VC/Redist/MSVC/
     # {x.y.z}/[debug_nonredist/]arm64/Microsoft.VC141.CRT/.
+    platform_toolset = '141'
+    if os.environ['GYP_MSVS_VERSION'] == '2019':
+      platform_toolset = '142'
+      
     vc_redist_root = FindVCRedistRoot()
     if suffix.startswith('.'):
       source_dir = os.path.join(vc_redist_root,
-                                'arm64', 'Microsoft.VC141.CRT')
+                                'arm64', 'Microsoft.VC' + platform_toolset +'.CRT')
     else:
       source_dir = os.path.join(vc_redist_root, 'debug_nonredist',
-                                'arm64', 'Microsoft.VC141.DebugCRT')
+                                'arm64', 'Microsoft.VC' + platform_toolset +'.DebugCRT')
   for file_part in ('msvcp', 'vccorlib', 'vcruntime'):
     dll = dll_pattern % file_part
     target = os.path.join(target_dir, dll)
