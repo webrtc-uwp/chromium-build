@@ -2236,8 +2236,8 @@ config("symbols") {
       # information in .obj and .lib files instead of copying
       # it all. This flag is incompatible with /PROFILE
       ldflags = [ "/DEBUG:FASTLINK" ]
-    } else if (is_clang && use_lld && use_ghash && current_cpu != "arm64") {
-      # -gcodeview-ghash is not used during compilation for winuwp arm64 
+    } else if (is_clang && use_lld && use_ghash && current_cpu != "arm64" && current_cpu != "arm") {
+      # -gcodeview-ghash is not used during winuwp compilation for arm and arm64 
       cflags += [ "-gcodeview-ghash" ]
       ldflags = [ "/DEBUG:GHASH" ]
     } else {
