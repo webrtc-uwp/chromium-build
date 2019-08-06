@@ -35,8 +35,7 @@ declare_args() {
   # seen (crbug.com/903553) and iterator debugging also slows builds by making
   # generation of snapshot_blob.bin take ~40-60 s longer. Therefore this
   # defaults to off.
-  # Set to true because of wrapper linker issues in DEBUG mode.
-  enable_iterator_debugging = true
+  enable_iterator_debugging = false
 }
 
 # ==============================================
